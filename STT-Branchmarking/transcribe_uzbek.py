@@ -1,27 +1,16 @@
 import whisper
 
-# Whisper large model: less fast&high accuracy
-print("🚀 Loading Whisper model (large-v3)...")
-model = whisper.load_model("large-v3") 
-
-# Whisper small model: fast&less accuracy
-# print("🚀 Loading Whisper model (small)...")
-# model = whisper.load_model("medium")
-
-
-# Whisper medium model: Balanced speed&accuracy
-# print("🚀 Loading Whisper model (large-v3)...")
-# model = whisper.load_model("large-v3")
-
-audio_path = "clean_audio.wav"
+print(" Loading a model for Uzbek...")
+model = whisper.load_model("large-v3")
 
 result = model.transcribe(
-    audio_path,
+    "test_clean.mp3",
     language="uz",
-    fp16=False,
+    task="transcribe",
     temperature=0,
-    beam_size=5
+    beam_size=5,
+    fp16=False
 )
 
-print("\n✅ UZBEK TRANSCRIPTION:")
+print("\n✅ FINAL UZBEK RESULT:")
 print(result["text"])

@@ -1,53 +1,30 @@
-# Uzbek Speech-to-Text (Whisper)
+# Uzbek Audio-to-Text Module
 
-Simple lien of code  to convert Uzbek audio to text using OpenAI Whisper.
-
-## ✅ Features
-
-* Supports Uzbek language
-* Works with WAV / MP3
-* Uses Whisper (small / medium / large)
-* Handles light background noise
-
-## 📦 Install
-
-```bash
-pip install openai-whisper librosa
-```
-
-## ▶️ Usage
-
-Run the script:
-
-```bash
-python stt_test.py
-```
-
-## 📄 Example Code
-
-```python
-import whisper
-
-model = whisper.load_model("small")  # change to medium or large if needed
-result = model.transcribe("test_clean.mp3", language="uz", fp16=False)
-print(result["text"])
-```
-
-## ⚡ Model Speed vs Accuracy
-
-* small → Fast, less accurate
-* medium → Balanced
-* large → Slow, most accurate
-
-## 📝 Notes
-
-For best results:
-
-* Use clear audio
-* Avoid loud music in background
-* Prefer 16kHz mono audio
+This script converts Uzbek audio files into text using the **Wav2Vec2** model `lucio/xls-r-uzbek-cv8` from Hugging Face.
 
 ---
 
-Made for Uzbek STT testing & comparison 🚀
+## Requirements
 
+- Python 3.8+
+- PyTorch
+- Transformers
+- Librosa
+
+Install dependencies:
+
+```bash
+pip install torch transformers librosa
+```
+
+
+
+Usage
+
+1. Place your Uzbek audio file (e.g., test_clean.mp3) in the same folder.
+2. Update AUDIO_FILE in the script if needed.
+3. Run the script:
+
+
+
+You will see the Uzbek transcription printed in the console.

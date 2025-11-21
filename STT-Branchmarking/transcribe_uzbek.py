@@ -1,16 +1,26 @@
-import whisper
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+import torch
+import librosa
 
-print(" Loading a model for Uzbek...")
-model = whisper.load_model("large-v3")
+MODEL_NAME = "lucio/xls-r-uzbek-cv8"
+AUDIO_FILE = "test_clean.mp3"   
 
-result = model.transcribe(
-    "test_clean.mp3",
-    language="uz",
-    task="transcribe",
-    temperature=0,
-    beam_size=5,
-    fp16=False
-)
+print("🚀 Loading Uzbek STT model:", MODEL_NAME)
 
-print("\n✅ FINAL UZBEK RESULT:")
-print(result["text"])
+processor = Wav2Vec2Processor.from_pretrained(MODEL_NAME)
+model = Wav2Vec2ForCTC.from_pretrained(MODEL_NAME)
+model.eval()
+
+print("🎧 Loading audio...")
+audio, sr = librosa.load(AUDIO_FILE, sr=16000)
+
+inputs = processor(audio, sampling_rate=16000, return_tensors="pt", padding=True)
+
+with torch.no_grad():
+    logits = model(**inputs).logits
+
+predicted_ids = torch.argmax(logits, dim=-1)
+transcription = processor.batch_decode(predicted_ids)[0]
+
+print("\n✅ Uzbek Transcription:")
+print(transcription)

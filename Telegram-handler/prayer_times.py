@@ -18,6 +18,8 @@ def get_by_cor(lat,lon):
   response = requests.get(url)
   response.raise_for_status()
   data = response.json()
+  if not data:
+        return None
   return (data['data']['timings'])
 
 

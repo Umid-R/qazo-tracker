@@ -12,6 +12,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import  Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from prayer_times import get_by_cor, get_cor_city
 from dotenv import load_dotenv
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
 
 load_dotenv()
@@ -125,7 +126,16 @@ async def handle_text(message: Message):
 
 async def main():
     bot = Bot(token=access_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    
+    await bot.set_chat_menu_button(
+    menu_button=MenuButtonWebApp(
+        text="🕌 Qaza Tracker",
+        web_app=WebAppInfo(url="https://jsur.onrender.com/")
+    )
+    )
+    
     await dp.start_polling(bot,drop_pending_updates=True)
+    
 
 
 if __name__ == "__main__":

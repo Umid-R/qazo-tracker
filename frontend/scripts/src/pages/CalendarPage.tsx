@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+interface DayPrayers {
+  [key: number]: {
+    prayers: Array<{ name: string; prayed: boolean }>;
+  };
+}
+
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2024, 11)); // December
+  const [currentMonth, setCurrentMonth] = useState(new Date(2024, 11));
 
   const monthData = {
     adaPrayers: 40,
@@ -12,22 +18,19 @@ export default function CalendarPage() {
     mostCommonReason: 'Sleep',
   };
 
-  const daysWithActivity = {
-    1: { ada: true, missed: false, qaza: false },
-    2: { ada: true, missed: false, qaza: false },
-    3: { ada: true, missed: false, qaza: false },
-    4: { ada: false, missed: true, qaza: false },
-    5: { ada: true, missed: false, qaza: false },
-    6: { ada: true, missed: false, qaza: false },
-    7: { ada: true, missed: false, qaza: false },
-    8: { ada: true, missed: false, qaza: false },
-    9: { ada: true, missed: false, qaza: false },
-    10: { ada: true, missed: false, qaza: false },
-    3: { ada: true, missed: false, qaza: false },
-    4: { ada: false, missed: true, qaza: true },
-    5: { ada: true, missed: false, qaza: false },
-    6: { ada: true, missed: false, qaza: false },
-    7: { ada: true, missed: false, qaza: false },
+  const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+  const daysWithPrayers: DayPrayers = {
+    1: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    2: { prayers: [true, true, true, true, false].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    3: { prayers: [false, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    4: { prayers: [false, false, true, false, false].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    5: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    6: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    7: { prayers: [true, false, true, true, false].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    8: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    9: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    10: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -60,15 +63,33 @@ export default function CalendarPage() {
     );
   };
 
-  const getActivityDots = (day: number) => {
-    const activity = daysWithActivity[day as keyof typeof daysWithActivity];
-    if (!activity) return null;
+  const getDayBackground = (day: number) => {
+    const dayData = daysWithPrayers[day as keyof typeof daysWithPrayers];
+    if (!dayData) return 'bg-gray-800/30';
+
+    const prayedCount = dayData.prayers.filter(p => p.prayed).length;
+    const missedCount = 5 - prayedCount;
+
+    if (prayedCount === 5) return 'bg-emerald-900/40';
+    if (missedCount === 5) return 'bg-red-900/40';
+    if (prayedCount > missedCount) return 'bg-amber-900/40';
+    return 'bg-orange-900/40';
+  };
+
+  const getPrayerDots = (day: number) => {
+    const dayData = daysWithPrayers[day as keyof typeof daysWithPrayers];
+    if (!dayData) return null;
 
     return (
-      <div className="flex gap-0.5 justify-center">
-        {activity.ada && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>}
-        {activity.missed && <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>}
-        {activity.qaza && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}
+      <div className="flex gap-1 justify-center mt-1.5">
+        {dayData.prayers.map((prayer, index) => (
+          <div
+            key={index}
+            className={`w-1 h-1 rounded-full ${
+              prayer.prayed ? 'bg-emerald-400' : 'bg-red-500'
+            }`}
+          ></div>
+        ))}
       </div>
     );
   };
@@ -81,98 +102,94 @@ export default function CalendarPage() {
           <p className="text-gray-400 text-base">Daily prayer history</p>
         </header>
 
-        <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-2xl p-6 border border-teal-700/30">
+        <div className="bg-gradient-to-br from-teal-900/30 to-teal-800/20 rounded-2xl p-6 border border-teal-700/40">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold">{monthName}</h2>
+            <h2 className="text-2xl font-semibold">{monthName} Summary</h2>
             <div className="flex gap-2">
               <button
                 onClick={previousMonth}
-                className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
+                className="p-2 hover:bg-teal-700/30 rounded-lg transition-colors"
               >
                 <ChevronLeft size={20} />
               </button>
               <button
                 onClick={nextMonth}
-                className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
+                className="p-2 hover:bg-teal-700/30 rounded-lg transition-colors"
               >
                 <ChevronRight size={20} />
               </button>
             </div>
           </div>
 
-          <div className="bg-gray-800/30 rounded-xl p-4 mb-6 border border-gray-700/30">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-emerald-400 mb-1">
-                  {monthData.adaPrayers}
-                </div>
-                <p className="text-sm text-gray-400">Ada Prayers</p>
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-400 mb-1">
+                {monthData.adaPrayers}
               </div>
-              <div>
-                <div className="text-2xl font-bold text-red-400 mb-1">
-                  {monthData.missed}
-                </div>
-                <p className="text-sm text-gray-400">Missed</p>
+              <p className="text-xs text-gray-400 uppercase font-semibold">Ada Prayers</p>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-400 mb-1">
+                {monthData.missed}
               </div>
-              <div>
-                <div className="text-2xl font-bold text-emerald-500 mb-1">
-                  {monthData.qazaDone}
-                </div>
-                <p className="text-sm text-gray-400">Qaza Done</p>
+              <p className="text-xs text-gray-400 uppercase font-semibold">Missed</p>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-emerald-500 mb-1">
+                {monthData.qazaDone}
               </div>
+              <p className="text-xs text-gray-400 uppercase font-semibold">Qaza Done</p>
             </div>
           </div>
 
-          <div className="mb-6 space-y-3">
+          <div className="space-y-3 pt-4 border-t border-teal-700/30">
             <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Most missed prayer</span>
-              <span className="text-white font-medium">{monthData.mostMissedPrayer}</span>
+              <span className="text-gray-400">Most missed prayer</span>
+              <span className="text-white font-semibold">{monthData.mostMissedPrayer}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Most common reason</span>
-              <span className="text-white font-medium">{monthData.mostCommonReason}</span>
+              <span className="text-gray-400">Most common reason</span>
+              <span className="text-white font-semibold">{monthData.mostCommonReason}</span>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-7 gap-2 mb-4">
+        <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-2xl p-6 border border-teal-700/30">
+          <div className="space-y-4">
+            <div className="grid grid-cols-7 gap-3">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-                <div key={day} className="text-center text-sm font-semibold text-gray-400">
+                <div key={day} className="text-center text-xs font-semibold text-gray-400">
                   {day}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-3">
               {emptyDays.map((_, index) => (
                 <div key={`empty-${index}`} className="aspect-square"></div>
               ))}
               {days.map((day) => (
                 <div
                   key={day}
-                  className="aspect-square bg-gray-800/40 rounded-lg border border-gray-700/30 flex flex-col items-center justify-between p-1.5 hover:bg-gray-800/60 transition-colors"
+                  className={`aspect-square ${getDayBackground(day)} rounded-full border border-gray-700/40 flex flex-col items-center justify-center p-2 hover:border-teal-600/50 transition-colors cursor-pointer`}
                 >
-                  <span className="text-sm font-medium">{day}</span>
-                  {getActivityDots(day)}
+                  <span className="text-sm font-semibold">{day}</span>
+                  {getPrayerDots(day)}
                 </div>
               ))}
             </div>
           </div>
 
           <div className="mt-6 pt-6 border-t border-gray-700/30">
-            <p className="text-sm font-medium text-gray-300 mb-3">Indicators:</p>
-            <div className="flex gap-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Indicators:</p>
+            <div className="flex gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
                 <span className="text-xs text-gray-400">Ada</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
                 <span className="text-xs text-gray-400">Missed</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
-                <span className="text-xs text-gray-400">Qaza</span>
               </div>
             </div>
           </div>

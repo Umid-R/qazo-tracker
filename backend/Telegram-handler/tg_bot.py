@@ -15,8 +15,7 @@ from dotenv import load_dotenv
 from aiogram.types import MenuButtonWebApp, WebAppInfo
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[2]  # qazo-tracker/
-ENV_PATH = BASE_DIR / "infra" / ".env"
+
 
 load_dotenv()
 

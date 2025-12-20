@@ -5,46 +5,31 @@ export default function HomePage() {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [totalQazaRemaining, setTotalQazaRemaining] = useState<number | null>(null);
 
-  function getTelegramUserId(): number | null {
-  // @ts-ignore
-  if (window.Telegram && window.Telegram.WebApp) {
-    // @ts-ignore
-    return window.Telegram.WebApp.initDataUnsafe?.user?.id ?? null;
-  }
-  return null;
-}
-
   useEffect(() => {
-  // @ts-ignore
-  const tg = window.Telegram?.WebApp;
+    async function fetchTotalQazas() {
+      // @ts-ignore
+      const tg = window.Telegram?.WebApp;
+      if (!tg) return;
 
-  if (!tg) {
-    console.error("Telegram WebApp not found");
-    return;
-  }
+      tg.ready();
 
-  // REQUIRED
-  tg.ready();
+      const userId = tg.initDataUnsafe?.user?.id;
+      if (!userId) {
+        console.error("Telegram userId is null");
+        return;
+      }
 
-  const userId = tg.initDataUnsafe?.user?.id;
+      try {
+        const res = await fetch(`https://fast-api-p3ci.onrender.com/qaza/total/${userId}`);
+        const data = await res.json();
+        setTotalQazaRemaining(data.total_qazas);
+      } catch (err) {
+        console.error("Failed to fetch total qazas", err);
+      }
+    }
 
-  console.log("Telegram userId:", userId);
-
-  if (!userId) {
-    console.error("Telegram userId is null");
-    return;
-  }
-
-  fetch(`https://fast-api-p3ci.onrender.com/qaza/total/${userId}`)
-    .then(res => res.json())
-    .then(data => {
-      setTotalQazaRemaining(data.total_qazas);
-    })
-    .catch(err => {
-      console.error("Failed to fetch total qazas", err);
-    });
-}, []);
-
+    fetchTotalQazas();
+  }, []);
 
   const weeklyActivity = [
     { day: 'S', active: true },
@@ -65,7 +50,6 @@ export default function HomePage() {
   ];
 
   const maxCount = Math.max(...prayerBreakdown.map(p => p.count));
-  
   const completedToday = 2;
   const dailyGoal = 4;
   const progressPercent = (completedToday / dailyGoal) * 100;
@@ -84,7 +68,7 @@ export default function HomePage() {
               <p className="text-emerald-300 text-xs font-semibold">Qaza Backlog</p>
             </div>
             <h2 className="text-7xl font-bold mb-2">
-              {totalQazaRemaining === null ? "—" : totalQazaRemaining}
+              {totalQazaRemaining ?? "—"}
             </h2>
             <p className="text-gray-400 text-sm mb-8">prayers remaining</p>
 
@@ -145,10 +129,7 @@ export default function HomePage() {
           <p className="text-gray-400 text-sm mb-5">Active last 7 days</p>
           <div className="flex gap-2">
             {weeklyActivity.map((item, index) => (
-              <div
-                key={index}
-                className="flex-1 flex flex-col items-center gap-2"
-              >
+              <div key={index} className="flex-1 flex flex-col items-center gap-2">
                 <div
                   className={`flex-1 w-full rounded-lg transition-all ${item.active
                       ? 'bg-gradient-to-t from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/30'
@@ -181,7 +162,6 @@ export default function HomePage() {
           </div>
 
           <p className="text-gray-400 text-xs uppercase tracking-widest mb-4 font-semibold">Qaza Breakdown</p>
-
           <div className="space-y-3">
             {prayerBreakdown.map((prayer) => (
               <div key={prayer.name} className="flex items-center gap-3">

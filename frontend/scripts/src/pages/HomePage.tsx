@@ -35,7 +35,7 @@ export default function HomePage() {
     return;
   }
 
-  fetch(`http://127.0.0.1:8000/qaza/total/${userId}`)
+  fetch(`https://fast-api-p3ci.onrender.com/qaza/total/${userId}`)
     .then(res => res.json())
     .then(data => {
       setTotalQazaRemaining(data.total_qazas);

@@ -13,14 +13,15 @@ from aiogram.types import  Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKe
 from prayer_times import get_by_cor, get_cor_city
 from dotenv import load_dotenv
 from aiogram.types import MenuButtonWebApp, WebAppInfo
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parents[2]  # qazo-tracker/
+ENV_PATH = BASE_DIR / "infra" / ".env"
 
 load_dotenv()
 
 
 
-# Add Database folder to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Database'))
 
 from database import  insert_user, update_user, is_user_exist, insert_prayer_times, update_prayer_times
 

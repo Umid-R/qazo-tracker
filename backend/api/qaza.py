@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from backend.database.qaza_stats import get_total_qazas
+from backend.Database.qaza_stats import get_total_qazas
 
 router = APIRouter()
 

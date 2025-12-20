@@ -1,16 +1,33 @@
 from fastapi import FastAPI
-import threading
 import asyncio
-from backend.Telegram_handler.tg_bot import main
+from backend.Telegram_handler.tg_bot import main  # make sure this points to your main bot function
 
-app = FastAPI()
+app = FastAPI(title="Qaza Tracker API")
 
-# Run Telegram bot in a separate thread
-def run_bot():
-    asyncio.run(main())
+@app.on_event("startup")
+async def startup_event():
+    """
+    Start the Telegram bot as a background task when FastAPI starts.
+    """
+    asyncio.create_task(run_bot())
 
-threading.Thread(target=run_bot, daemon=True).start()
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Optional: Handle any cleanup if needed on shutdown.
+    """
+    print("Application shutdown...")
+
+async def run_bot():
+    """
+    Run the Telegram bot in the same event loop as FastAPI.
+    """
+    try:
+        # Run your aiogram bot
+        await main()
+    except Exception as e:
+        print(f"Bot crashed: {e}")
 
 @app.get("/")
-def root():
+async def root():
     return {"status": "Bot is running"}

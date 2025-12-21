@@ -5,31 +5,41 @@ export default function HomePage() {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [totalQazaRemaining, setTotalQazaRemaining] = useState<number | null>(null);
 
-  useEffect(() => {
-    async function fetchTotalQazas() {
-      // @ts-ignore
-      const tg = window.Telegram?.WebApp;
-      if (!tg) return;
+ useEffect(() => {
+  async function fetchTotalQazas() {
+    // @ts-ignore
+    const tg = window.Telegram.WebApp;
+    if (!tg) return;
 
-      tg.ready();
+    tg.ready();
 
-      const userId = tg.initDataUnsafe?.user?.id;
-      if (!userId) {
-        console.error("Telegram userId is null");
-        return;
-      }
+    // Get the raw initData string
+    const initData = tg.initData;
 
-      try {
-        const res = await fetch(`https://fast-api-p3ci.onrender.com/qaza/total/${userId}`);
-        const data = await res.json();
-        setTotalQazaRemaining(data.total_qazas);
-      } catch (err) {
-        console.error("Failed to fetch total qazas", err);
-      }
+    // Access unsafe (but validated) user data directly
+    const userData = tg.initDataUnsafe.user;
+
+    // The user's unique numerical ID
+    const userId = userData.id;
+    console.log("Telegram user ID:", userId); // Print userId in terminal
+
+    if (!userId) {
+      console.error("Telegram userId is null");
+      return;
     }
 
-    fetchTotalQazas();
-  }, []);
+    try {
+      const res = await fetch(`https://fast-api-p3ci.onrender.com/qaza/total/${userId}`);
+      const data = await res.json();
+      console.log("Total Qazas:", data.total_qazas); // Print total_qazas in terminal
+      setTotalQazaRemaining(data.total_qazas);
+    } catch (err) {
+      console.error("Failed to fetch total qazas", err);
+    }
+  }
+
+  fetchTotalQazas();
+}, []);
 
   const weeklyActivity = [
     { day: 'S', active: true },

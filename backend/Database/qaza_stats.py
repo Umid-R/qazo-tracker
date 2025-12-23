@@ -14,6 +14,17 @@ key= os.getenv("SUPABASE_KEY")
 
 Client = create_client(url, key)
 
+def get_user_info(user_id: int):
+    res = (
+        Client
+        .table("users")
+        .select("id,name,lat,lon,joined,daily_goal", )
+        .eq("id", user_id)
+        .execute()
+    )
+    return res.data[0]
+#print(get_user_info(1207972222))
+
 def get_total_qazas(user_id):
     res = (
         Client
@@ -26,9 +37,10 @@ def get_total_qazas(user_id):
 
     return res.count
 
-print(get_total_qazas(1207972222))
+#print(get_total_qazas(1207972222))
 
 
+    
 
 def get_today_prayed_qazas(user_id: int):
     today = date.today()
@@ -40,7 +52,7 @@ def get_today_prayed_qazas(user_id: int):
         Client
         .table("qazas")
         .select("id", count="exact")
-        .eq("id", user_id)
+        .eq("user_id", user_id)
         .eq("is_qaza", False)  
         .gte("time_prayed", start.isoformat())
         .lte("time_prayed", end.isoformat())
@@ -49,21 +61,10 @@ def get_today_prayed_qazas(user_id: int):
 
     return res.count
 
-# print(get_today_prayed_qazas(1207972222))
+#print(get_today_prayed_qazas(1207972222))
 
 
-def member_since(user_id):
-    res = (
-        Client
-        .table("users")
-        .select("joined")
-        .eq('id',user_id)
-        .execute()
-    )
 
-    return res.data[0]['joined']
-
-# print((member_since(1207972222)))
 
 
 def qazas_rating(user_id):
@@ -81,4 +82,4 @@ def qazas_rating(user_id):
 
     return res.data
 
-# print((qazas_rating(1207972222)))
+#print((qazas_rating(1207972222)))

@@ -29,10 +29,10 @@ def today_prayed(user_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@router.get('/qazas_stats/{user_id}')
+@router.get('qazas_stats/{user_id}')
 def get_qazas_stats(user_id:int):
     try:
-        stats=get_qazas_stats(user_id)
+        stats=qazas_rating(user_id)
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

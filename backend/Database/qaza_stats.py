@@ -82,4 +82,4 @@ def qazas_rating(user_id):
 
     return res.data
 
-#print((qazas_rating(1207972222)))
+print((qazas_rating(1207972222)))

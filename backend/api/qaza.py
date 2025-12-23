@@ -3,7 +3,7 @@ from backend.Database.qaza_stats import get_total_qazas, get_today_prayed_qazas,
 
 router = APIRouter()
 
-@router.get('user_info/{user_id}')
+@router.get('/user_info/{user_id}')
 def get_user(user_id: int):
     try:
         info=get_user_info(user_id)
@@ -29,7 +29,7 @@ def today_prayed(user_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@router.get('qazas_stats/{user_id}')
+@router.get('/qazas_stats/{user_id}')
 def get_qazas_stats(user_id:int):
     try:
         stats=get_qazas_stats(user_id)

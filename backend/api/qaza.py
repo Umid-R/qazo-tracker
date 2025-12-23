@@ -3,7 +3,7 @@ from backend.Database.qaza_stats import get_total_qazas, get_today_prayed_qazas,
 
 router = APIRouter()
 
-@router.get('/user_info/{user_id}')
+@router.get('/user_info/{userId}')
 def get_user(user_id: int):
     try:
         info=get_user_info(user_id)
@@ -11,7 +11,7 @@ def get_user(user_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/total/{user_id}")
+@router.get("/total/{userId}")
 def total_qazas(user_id: int):
     try:
         total = get_total_qazas(user_id)
@@ -20,7 +20,7 @@ def total_qazas(user_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@router.get("/today_prayed/{user_id}")
+@router.get("/today_prayed/{userId}")
 def today_prayed(user_id: int):
     try:
         total=get_today_prayed_qazas(user_id)
@@ -29,7 +29,7 @@ def today_prayed(user_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@router.get('qazas_stats/{user_id}')
+@router.get('/qazas_stats/{userId}')
 def get_qazas_stats(user_id:int):
     try:
         stats=qazas_rating(user_id)

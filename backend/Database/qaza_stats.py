@@ -46,18 +46,26 @@ def qazas_rating(user_id):
         .table("qaza_counts")
         .select("prayer, counts")
         .eq("user_id", user_id)
-        .order("counts", desc=True)
         .execute()
     )
 
-    if not res.data:
-        return None
-    breakdown={}
-    for prayer in res.data:
-        breakdown[prayer['prayer']]=prayer['counts']
-    
+    # Initialize all prayers with 0
+    breakdown = {
+        "Fajr": 0,
+        "Dhuhr": 0,
+        "Asr": 0,
+        "Maghrib": 0,
+        "Isha": 0
+    }
+
+    # Overwrite only existing prayers
+    if res.data:
+        for row in res.data:
+            breakdown[row["prayer"]] = row["counts"]
+
     return breakdown
-print((qazas_rating(1207972222)))
+
+# print((qazas_rating(1207972222)))
 
 
     
@@ -176,7 +184,7 @@ def get_weekly_activity(user_id: int):
         })
 
     return result
-print(get_weekly_activity(1207972222))
+# print(get_weekly_activity(1207972222))
 
 
 

@@ -49,7 +49,7 @@ def qazas_rating(user_id):
         .execute()
     )
 
-    # Initialize all prayers with 0
+    
     breakdown = {
         "fajr": 0,
         "dhuhr": 0,
@@ -150,7 +150,7 @@ def get_prayers_stats(user_id: int):
 
     
 
-#print(get_prayers_stats(1207972222))
+print(get_prayers_stats(1207972222))
 
 
 def get_weekly_activity(user_id: int):

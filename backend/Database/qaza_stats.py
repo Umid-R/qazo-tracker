@@ -46,6 +46,7 @@ def qazas_rating(user_id):
         .table("qaza_counts")
         .select("prayer, counts")
         .eq("user_id", user_id)
+        .eq('qaza',True)
         .order("counts", desc=True)
         .execute()
     )

@@ -51,11 +51,11 @@ def qazas_rating(user_id):
 
     # Initialize all prayers with 0
     breakdown = {
-        "Fajr": 0,
-        "Dhuhr": 0,
-        "Asr": 0,
-        "Maghrib": 0,
-        "Isha": 0
+        "fajr": 0,
+        "dhuhr": 0,
+        "asr": 0,
+        "maghrib": 0,
+        "isha": 0
     }
 
     # Overwrite only existing prayers

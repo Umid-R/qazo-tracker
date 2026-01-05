@@ -1,7 +1,6 @@
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
-from pathlib import Path
 from datetime import  datetime, timedelta, time, date
 
 
@@ -184,7 +183,8 @@ def get_weekly_activity(user_id: int):
         })
 
     return result
-# print(get_weekly_activity(1207972222))
+print(get_weekly_activity(1207972222))
+
 
 
 

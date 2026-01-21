@@ -10,7 +10,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import  Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
-from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
+from Telegram_handler.prayer_times import get_by_cor, get_cor_city
 from dotenv import load_dotenv
 from aiogram.types import MenuButtonWebApp, WebAppInfo
 from pathlib import Path

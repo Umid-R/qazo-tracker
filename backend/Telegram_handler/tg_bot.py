@@ -130,7 +130,7 @@ async def main():
     await bot.set_chat_menu_button(
     menu_button=MenuButtonWebApp(
         text="🕌 Qaza Tracker",
-        web_app=WebAppInfo(url="https://jsur.onrender.com/")
+        web_app=WebAppInfo(url="https://jsur.vercel.app/")
     )
     )
     

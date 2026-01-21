@@ -9,7 +9,7 @@ app = FastAPI(title="Qaza Tracker API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://jsur.onrender.com"
+        "https://jsur.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],

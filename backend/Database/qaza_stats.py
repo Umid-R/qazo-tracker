@@ -206,7 +206,7 @@ def get_prayer_message():
         .select("message")
         .execute()
     )
-    message=random.choice(res.data)
+    message=random.choice(res.data['message'])
     return message
 
 

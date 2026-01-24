@@ -49,7 +49,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
                 continue
-
+            print(time_str)
             prayer_dt = datetime.strptime(time_str, "%H:%M").replace(
                 year=now.year,
                 month=now.month,

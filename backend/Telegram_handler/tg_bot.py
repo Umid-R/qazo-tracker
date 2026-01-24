@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import  Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
-from backend.Database.qaza_stats import get_prayer_times
+from backend.Database.qaza_stats import get_prayer_times, get_prayer_message
 from dotenv import load_dotenv
 from aiogram.types import MenuButtonWebApp, WebAppInfo
 from backend.Database.database import  insert_user, update_user, is_user_exist, insert_prayer_times, update_prayer_times
@@ -62,10 +62,10 @@ async def prayer_scheduler(bot: Bot, user_id: int):
             if abs((now - prayer_dt).total_seconds()) < 60:
                 if sent_today[user_id].get(prayer) == today:
                     continue
-
+                message=get_prayer_message()
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"🕌 Time for {prayer.capitalize()} prayer\n({time_str})"
+                    text=f"🕌 Time for {prayer.capitalize()} prayer\n{message}\n({time_str})"
                 )
 
                 sent_today[user_id][prayer] = today

@@ -188,7 +188,7 @@ def get_weekly_activity(user_id: int):
 
 
 
-def get_profile_quotes():
+def get_profile_quote():
     res = (
         Client
         .table("profile_quotes")
@@ -199,7 +199,15 @@ def get_profile_quotes():
     return quote
 
 
-
+def get_prayer_message():
+    res = (
+        Client
+        .table("prayer_messages")
+        .select("message")
+        .execute()
+    )
+    message=random.choice(res.data)
+    return message
 
 
 def get_prayer_times(user_id : int):
@@ -214,7 +222,7 @@ def get_prayer_times(user_id : int):
     return res.data[0]
 
 
-# print(get_prayer_times(1207972222))
+
     
     
 

@@ -206,8 +206,8 @@ def get_prayer_message():
         .select("message")
         .execute()
     )
-    message=random.choice(res.data['message'])
-    return message
+    message=random.choice(res.data)
+    return message['message']
 
 
 def get_prayer_times(user_id : int):

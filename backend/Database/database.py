@@ -39,7 +39,7 @@ def insert_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha):
     .eq('id',user_id)
     .execute())
     
-    timezone=get_timezone_from_latlon(response.data['lat'],response.data['lon'])
+    timezone=get_timezone_from_latlon(response.data[0]['lat'],response.data[0]['lon'])
     
     
     response = (

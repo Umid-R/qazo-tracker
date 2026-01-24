@@ -62,7 +62,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
             if abs((now - prayer_dt).total_seconds()) < 60:
                 if sent_today[user_id].get(prayer) == today:
                     continue
-                message=get_prayer_message()
+                message=get_prayer_message(prayer)
                 await bot.send_message(
                     chat_id=user_id,
                     text=f"🕌 Time for {prayer.capitalize()} prayer\n{message}\n({time_str})"

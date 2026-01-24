@@ -22,7 +22,7 @@ def get_user_info(user_id: int):
         .execute()
     )
     return res.data[0]
-#print(get_user_info(1207972222))
+
 
 def get_total_qazas(user_id):
     res = (
@@ -36,7 +36,7 @@ def get_total_qazas(user_id):
 
     return res.count
 
-#print(get_total_qazas(1207972222))
+
 
 
 def qazas_rating(user_id):
@@ -64,7 +64,7 @@ def qazas_rating(user_id):
 
     return breakdown
 
-# print((qazas_rating(1207972222)))
+
 
 
     
@@ -149,7 +149,7 @@ def get_prayers_stats(user_id: int):
 
     
 
-print(get_prayers_stats(1207972222))
+
 
 def get_weekly_activity(user_id: int):
     today = date.today()
@@ -185,7 +185,7 @@ def get_weekly_activity(user_id: int):
 
     return week_status
 
-print(get_weekly_activity(1207972222))
+
 
 
 def get_profile_quotes():
@@ -199,7 +199,7 @@ def get_profile_quotes():
     return quote
 
 
-print(get_profile_quotes())
+
 
 
 def get_prayer_times(user_id : int):
@@ -214,7 +214,7 @@ def get_prayer_times(user_id : int):
     return res.data[0]
 
 
-print(get_prayer_times(1207972222))
+# print(get_prayer_times(1207972222))
     
     
 

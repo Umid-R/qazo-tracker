@@ -199,11 +199,12 @@ def get_profile_quote():
     return quote
 
 
-def get_prayer_message():
+def get_prayer_message(prayer):
     res = (
         Client
         .table("prayer_messages")
         .select("message")
+        .eq('prayer',prayer)
         .execute()
     )
     message=random.choice(res.data)

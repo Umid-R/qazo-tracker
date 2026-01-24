@@ -206,7 +206,7 @@ def get_prayer_times(user_id : int):
     res = (
         Client
         .table("prayer_times")
-        .select("fajr,dhuhr,asr,maghrib,isha")
+        .select("fajr,dhuhr,asr,maghrib,isha,timezone")
         .eq("user_id", user_id)
         .execute()
     )

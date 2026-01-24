@@ -38,6 +38,7 @@ dp = Dispatcher()
 
 async def prayer_scheduler(bot: Bot, user_id: int):
     while True:
+        print(f"[SCHEDULER] checking user {user_id}")
         prayer_times = get_prayer_times(user_id)
         tz = ZoneInfo(prayer_times["timezone"])
 

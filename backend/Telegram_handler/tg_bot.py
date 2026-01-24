@@ -48,8 +48,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
             continue
 
         prayer_times = get_prayer_times(user_id)
-        # {'fajr': '06:28', 'dhuhr': '12:45', 'asr': '16:08', 'maghrib': '17:48', 'isha': '19:04'}
-        print("NOW:", now, "PRAYERS:", prayer_times['asr'])
+        
         if user_id not in sent_today:
             sent_today[user_id] = {}
 

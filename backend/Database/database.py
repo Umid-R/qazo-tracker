@@ -33,14 +33,14 @@ def insert_user(id,name,lat,lon):
         return 1
   
 def insert_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha):
-    response = (
+    response_user = (
     Client.table("users")
     .select('lat','lon')
     .eq('id',user_id)
     .execute())
     
-    timezone=get_timezone_from_latlon(response.data[0]['lat'],response.data[0]['lon'])
-    
+    timezone=get_timezone_from_latlon(response_user.data[0]['lat'],response_user.data[0]['lon'])
+    print(timezone)
     
     response = (
     Client.table("prayer_times")
@@ -54,13 +54,14 @@ def insert_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha):
         return 1
  
 def update_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha):
-    response = (
+    response_user = (
     Client.table("users")
     .select('lat','lon')
     .eq('id',user_id)
     .execute())
     
-    timezone=get_timezone_from_latlon(response.data[0]['lat'],response.data[0]['lon'])
+    timezone=get_timezone_from_latlon(response_user.data[0]['lat'],response_user.data[0]['lon'])
+    print(timezone)
     
     
     response = (

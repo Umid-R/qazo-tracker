@@ -202,6 +202,23 @@ def get_profile_quotes():
 print(get_profile_quotes())
 
 
+def get_prayer_times(user_id : int):
+    res = (
+        Client
+        .table("prayer_times")
+        .select("fajr,dhuhr,asr,maghrib,isha")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    
+    return res.data[0]
+
+
+print(get_prayer_times(1207972222))
+    
+    
+
+
 
 
 

@@ -11,24 +11,70 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import  Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
+from backend.Database.qaza_stats import get_prayer_times
 from dotenv import load_dotenv
 from aiogram.types import MenuButtonWebApp, WebAppInfo
-from pathlib import Path
+from backend.Database.database import  insert_user, update_user, is_user_exist, insert_prayer_times, update_prayer_times
+from datetime import datetime, date
+import asyncio
+
+
 
 
 
 load_dotenv()
 
 
+sent_today = {} 
+scheduler_tasks = {}  # {user_id: asyncio.Task}
 
-
-from backend.Database.database import  insert_user, update_user, is_user_exist, insert_prayer_times, update_prayer_times
 
 
 
 access_token=os.getenv("TELEGRAM_TOKEN")
 
 dp = Dispatcher()
+
+
+async def prayer_scheduler(bot: Bot, user_id: int):
+
+    while True:
+        now = datetime.now().strftime("%H:%M")
+        today = date.today()
+
+        if user_id is None:
+            await asyncio.sleep(30)
+            continue
+
+        prayer_times = get_prayer_times(user_id)
+        # {'fajr': '06:28', 'dhuhr': '12:45', 'asr': '16:08', 'maghrib': '17:48', 'isha': '19:04'}
+
+        if user_id not in sent_today:
+            sent_today[user_id] = {}
+
+        for prayer, time_str in prayer_times.items():
+            if now == time_str:
+                # ✅ prevent duplicate sends
+                if sent_today[user_id].get(prayer) == today:
+                    continue
+
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=f"🕌 Time for {prayer.capitalize()} prayer\n({time_str})"
+                )
+
+                sent_today[user_id][prayer] = today
+
+        await asyncio.sleep(30)
+        
+def start_prayer_scheduler(bot: Bot, user_id: int):
+    if user_id in scheduler_tasks:
+        return  # already running
+
+    task = asyncio.create_task(prayer_scheduler(bot, user_id))
+    scheduler_tasks[user_id] = task
+
+
 
 
 
@@ -73,6 +119,8 @@ async def handle_location(message: Message):
         f"Here are the prayer times for your location 🕌\nFajr:{prayer_times['Fajr']}\nSunrise:{prayer_times['Sunrise']}\nDhuhr:{prayer_times['Dhuhr']}\nAsr:{prayer_times['Asr']}\nMaghrib:{prayer_times['Maghrib']}\nIsha:{prayer_times['Isha']}",
         reply_markup=ReplyKeyboardRemove()
     )
+    
+    start_prayer_scheduler(message.bot, user_id)
 
 
 # -------- TEXT HANDLER (NAME OR CITY) --------
@@ -121,6 +169,9 @@ async def handle_text(message: Message):
             f"Here are the prayer times for your location 🕌\nFajr:{prayer_times['Fajr']}\nSunrise:{prayer_times['Sunrise']}\nDhuhr:{prayer_times['Dhuhr']}\nAsr:{prayer_times['Asr']}\nMaghrib:{prayer_times['Maghrib']}\nIsha:{prayer_times['Isha']}",
             reply_markup=ReplyKeyboardRemove()
         )
+        
+        start_prayer_scheduler(message.bot, user_id)
+        
         return
 
 

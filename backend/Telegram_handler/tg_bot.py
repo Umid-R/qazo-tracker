@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from aiogram.types import MenuButtonWebApp, WebAppInfo
 from backend.Database.database import  insert_user, update_user, is_user_exist, insert_prayer_times, update_prayer_times
 from datetime import datetime, date
-import asyncio
+from zoneinfo import ZoneInfo
 
 
 
@@ -39,8 +39,8 @@ dp = Dispatcher()
 async def prayer_scheduler(bot: Bot, user_id: int):
     
     while True:
-        now = datetime.now().strftime("%H:%M")
-        today = date.today()
+        
+        
         
 
         if user_id is None:
@@ -48,6 +48,9 @@ async def prayer_scheduler(bot: Bot, user_id: int):
             continue
 
         prayer_times = get_prayer_times(user_id)
+        tz = ZoneInfo(prayer_times["timezone"])
+        now = datetime.now(tz).strftime("%H:%M")
+        today = datetime.now(tz).date()
         
         if user_id not in sent_today:
             sent_today[user_id] = {}

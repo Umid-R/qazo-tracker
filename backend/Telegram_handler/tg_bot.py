@@ -37,10 +37,11 @@ dp = Dispatcher()
 
 
 async def prayer_scheduler(bot: Bot, user_id: int):
-
+    
     while True:
         now = datetime.now().strftime("%H:%M")
         today = date.today()
+        
 
         if user_id is None:
             await asyncio.sleep(30)
@@ -48,7 +49,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
 
         prayer_times = get_prayer_times(user_id)
         # {'fajr': '06:28', 'dhuhr': '12:45', 'asr': '16:08', 'maghrib': '17:48', 'isha': '19:04'}
-
+        print("NOW:", now, "PRAYERS:", prayer_times['asr'])
         if user_id not in sent_today:
             sent_today[user_id] = {}
 

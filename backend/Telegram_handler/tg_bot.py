@@ -49,7 +49,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
                 continue
-            print(time_str)
+
             prayer_dt = datetime.strptime(time_str, "%H:%M").replace(
                 year=now.year,
                 month=now.month,
@@ -57,14 +57,20 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                 tzinfo=tz
             )
 
-            if now == prayer_dt and sent_today[user_id].get(prayer) != today:
+            # ✅ SAFE WINDOW (cannot miss)
+            if abs((now - prayer_dt).total_seconds()) < 60:
+                if sent_today[user_id].get(prayer) == today:
+                    continue
+
                 await bot.send_message(
                     chat_id=user_id,
                     text=f"🕌 Time for {prayer.capitalize()} prayer\n({time_str})"
                 )
+
                 sent_today[user_id][prayer] = today
 
-        await asyncio.sleep(60)
+        # ⏱ align to next minute
+        await asyncio.sleep(60 - datetime.now(tz).second)
         
 def start_prayer_scheduler(bot: Bot, user_id: int):
     if user_id in scheduler_tasks:

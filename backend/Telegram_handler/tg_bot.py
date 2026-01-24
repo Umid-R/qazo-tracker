@@ -37,38 +37,34 @@ dp = Dispatcher()
 
 
 async def prayer_scheduler(bot: Bot, user_id: int):
-    
     while True:
-        
-        
-        
-
-        if user_id is None:
-            await asyncio.sleep(30)
-            continue
-
         prayer_times = get_prayer_times(user_id)
         tz = ZoneInfo(prayer_times["timezone"])
-        now = datetime.now(tz).strftime("%H:%M")
-        today = datetime.now(tz).date()
-        
-        if user_id not in sent_today:
-            sent_today[user_id] = {}
+
+        now = datetime.now(tz).replace(second=0, microsecond=0)
+        today = now.date()
+
+        sent_today.setdefault(user_id, {})
 
         for prayer, time_str in prayer_times.items():
-            if now == time_str:
-                # ✅ prevent duplicate sends
-                if sent_today[user_id].get(prayer) == today:
-                    continue
+            if prayer == "timezone":
+                continue
 
+            prayer_dt = datetime.strptime(time_str, "%H:%M").replace(
+                year=now.year,
+                month=now.month,
+                day=now.day,
+                tzinfo=tz
+            )
+
+            if now == prayer_dt and sent_today[user_id].get(prayer) != today:
                 await bot.send_message(
                     chat_id=user_id,
                     text=f"🕌 Time for {prayer.capitalize()} prayer\n({time_str})"
                 )
-
                 sent_today[user_id][prayer] = today
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(60)
         
 def start_prayer_scheduler(bot: Bot, user_id: int):
     if user_id in scheduler_tasks:

@@ -53,7 +53,7 @@ def insert_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha):
         print("Success-Inserted user:", response.data)
         return 1
  
-def update_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha,timezone):
+def update_prayer_times(user_id,fajr,sunrise,dhuhr,asr,maghrib,isha):
     response = (
     Client.table("users")
     .select('lat','lon')

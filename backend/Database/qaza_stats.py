@@ -24,6 +24,18 @@ def get_user_info(user_id: int):
     return res.data[0]
 
 
+def get_all_users():
+    res = (
+        Client
+        .table("users")
+        .select("id,lat,lon")
+        .execute()
+    )
+
+    return res.data
+
+ 
+
 def get_total_qazas(user_id):
     res = (
         Client

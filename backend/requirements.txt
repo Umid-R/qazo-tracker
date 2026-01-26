@@ -4,3 +4,4 @@ requests
 supabase
 timezonefinder
 uvicorn
+fastapi

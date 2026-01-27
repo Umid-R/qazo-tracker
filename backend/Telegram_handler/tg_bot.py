@@ -289,6 +289,7 @@ async def main():
 
     await bot.set_chat_menu_button(
         MenuButtonWebApp(
+            chat_id=None,
             text="🕌 Qaza Tracker",
             web_app=WebAppInfo(url="https://jsur.vercel.app"),
         )

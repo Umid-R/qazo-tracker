@@ -57,54 +57,63 @@ class Onboarding(StatesGroup):
 dp = Dispatcher(storage=MemoryStorage())
 
 # ======================
-# GLOBAL SCHEDULERS (SAFE)
+# GLOBAL TASK REGISTRY
 # ======================
-sent_today = {}
-scheduler_tasks = {}  # {user_id: asyncio.Task}
-pre_prayer_tasks = {}  # {user_id: asyncio.Task}
+pre_prayer_tasks: dict[int, asyncio.Task] = {}
 
 # ======================
-# PRAYER SCHEDULER
+# PRE-PRAYER SCHEDULER (CORRECT)
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
     while True:
         prayer_times = get_prayer_times(user_id)
         tz = ZoneInfo(prayer_times["timezone"])
+        now = datetime.now(tz)
 
-        now = datetime.now(tz).replace(second=0, microsecond=0)
+        prayer_datetimes = []
 
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
                 continue
 
-            prayer_dt = datetime.strptime(time_str, "%H:%M").replace(
-                year=now.year,
-                month=now.month,
-                day=now.day,
-                tzinfo=tz,
-            )
+            prayer_time = datetime.strptime(time_str, "%H:%M").time()
+            prayer_dt = datetime.combine(now.date(), prayer_time, tzinfo=tz)
+            prayer_datetimes.append((prayer, prayer_dt))
 
-            pre_prayer_dt = prayer_dt - timedelta(minutes=10)
+        # get next prayer (today or tomorrow)
+        future_prayers = [(p, dt) for p, dt in prayer_datetimes if dt > now]
+        if not future_prayers:
+            future_prayers = [(p, dt + timedelta(days=1)) for p, dt in prayer_datetimes]
 
-            
-            print(
-                f"[PRE] user={user_id} prayer={prayer} "
-                f"now={now.time()} pre={pre_prayer_dt.time()}"
-            )
+        next_prayer, next_prayer_dt = min(future_prayers, key=lambda x: x[1])
+        reminder_time = next_prayer_dt - timedelta(minutes=10)
 
-            
-            if abs((now - pre_prayer_dt).total_seconds()) < 60:
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=f"⏰ 10 minutes until {prayer.capitalize()} prayer",
-                )
+        logging.info(
+            f"[PRE] user={user_id} next={next_prayer} "
+            f"reminder={reminder_time.time()} now={now.time()}"
+        )
 
-        await asyncio.sleep(60 - datetime.now(tz).second)
+        # If reminder already passed, retry shortly
+        if reminder_time <= now:
+            await asyncio.sleep(30)
+            continue
 
-def start_prayer_scheduler(bot: Bot, user_id: int):
-    if user_id in scheduler_tasks:
+        await asyncio.sleep((reminder_time - now).total_seconds())
+
+        await bot.send_message(
+            user_id,
+            f"⏰ {next_prayer.capitalize()} prayer in 10 minutes.\nDid you pray already?"
+        )
+
+        # buffer so it never resends
+        await asyncio.sleep(60)
+
+def start_pre_prayer_scheduler(bot: Bot, user_id: int):
+    if user_id in pre_prayer_tasks:
         return
-    scheduler_tasks[user_id] = asyncio.create_task(prayer_scheduler(bot, user_id))
+    pre_prayer_tasks[user_id] = asyncio.create_task(
+        pre_prayer_scheduler(bot, user_id)
+    )
 
 # ======================
 # DAILY PRAYER UPDATE
@@ -132,72 +141,9 @@ async def daily_prayer_times_updater():
                     prayer_times["Isha"],
                 )
             except Exception as e:
-                print(f"[DAILY] Failed for {user['id']}: {e}")
+                logging.error(f"[DAILY] Failed for {user['id']}: {e}")
 
         await sleep_until_next_day()
-
-
-async def pre_prayer_scheduler(bot, user_id: int):
-    while True:
-        prayer_times = get_prayer_times(user_id)
-        tz = ZoneInfo(prayer_times["timezone"])
-        now = datetime.now(tz)
-
-        prayer_datetimes = []
-
-        for prayer, time_str in prayer_times.items():
-            if prayer == "timezone":
-                continue
-
-            prayer_time = datetime.strptime(time_str, "%H:%M").time()
-
-            prayer_dt = datetime.combine(
-                now.date(),
-                prayer_time,
-                tzinfo=tz,
-            )
-
-            prayer_datetimes.append((prayer, prayer_dt))
-
-        # if all prayers passed → move to tomorrow
-        future_prayers = [
-            (p, dt) for p, dt in prayer_datetimes if dt > now
-        ]
-
-        if not future_prayers:
-            future_prayers = [
-                (p, dt + timedelta(days=1))
-                for p, dt in prayer_datetimes
-            ]
-
-        next_prayer, next_prayer_dt = min(
-            future_prayers, key=lambda x: x[1]
-        )
-
-        reminder_time = next_prayer_dt - timedelta(minutes=10)
-
-        # if reminder already passed, just retry fast
-        if reminder_time <= now:
-            await asyncio.sleep(30)
-            continue
-
-        await asyncio.sleep((reminder_time - now).total_seconds())
-
-        await bot.send_message(
-            user_id,
-            f"⏰ {next_prayer.capitalize()} prayer in 10 minutes.\nDid you pray already?"
-        )
-
-        # small buffer so it doesn't resend
-        await asyncio.sleep(60)
-        
-def start_pre_prayer_scheduler(bot, user_id: int):
-    if user_id in pre_prayer_tasks:
-        return
-    pre_prayer_tasks[user_id] = asyncio.create_task(
-        pre_prayer_scheduler(bot, user_id)
-    )
-    
 
 # ======================
 # START COMMAND
@@ -287,7 +233,6 @@ async def handle_location(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardRemove(),
     )
 
-    start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
     await state.clear()
 
@@ -341,7 +286,6 @@ async def handle_city(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardRemove(),
     )
 
-    start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
     await state.clear()
 
@@ -355,12 +299,12 @@ async def main():
     )
 
     await bot.set_chat_menu_button(
-    chat_id=None,
-    menu_button=MenuButtonWebApp(
-        text="🕌 Qaza Tracker",
-        web_app=WebAppInfo(url="https://jsur.vercel.app"),
-    ),
-)
+        chat_id=None,
+        menu_button=MenuButtonWebApp(
+            text="🕌 Qaza Tracker",
+            web_app=WebAppInfo(url="https://jsur.vercel.app"),
+        ),
+    )
 
     asyncio.create_task(daily_prayer_times_updater())
     await dp.start_polling(bot, drop_pending_updates=True)

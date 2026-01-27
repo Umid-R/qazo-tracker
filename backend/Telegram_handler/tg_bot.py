@@ -66,15 +66,12 @@ pre_prayer_tasks = {}  # {user_id: asyncio.Task}
 # ======================
 # PRAYER SCHEDULER
 # ======================
-async def prayer_scheduler(bot: Bot, user_id: int):
+async def pre_prayer_scheduler(bot: Bot, user_id: int):
     while True:
         prayer_times = get_prayer_times(user_id)
         tz = ZoneInfo(prayer_times["timezone"])
 
         now = datetime.now(tz).replace(second=0, microsecond=0)
-        today = now.date()
-
-        sent_today.setdefault(user_id, {})
 
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
@@ -87,16 +84,20 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                 tzinfo=tz,
             )
 
-            if abs((now - prayer_dt).total_seconds()) < 60:
-                if sent_today[user_id].get(prayer) == today:
-                    continue
+            pre_prayer_dt = prayer_dt - timedelta(minutes=10)
 
-                message = get_prayer_message(prayer)
+            
+            print(
+                f"[PRE] user={user_id} prayer={prayer} "
+                f"now={now.time()} pre={pre_prayer_dt.time()}"
+            )
+
+            
+            if abs((now - pre_prayer_dt).total_seconds()) < 60:
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"🕌 Time for {prayer.capitalize()} prayer\n{message}\n({time_str})",
+                    text=f"⏰ 10 minutes until {prayer.capitalize()} prayer",
                 )
-                sent_today[user_id][prayer] = today
 
         await asyncio.sleep(60 - datetime.now(tz).second)
 

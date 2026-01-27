@@ -86,7 +86,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                     continue
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message()} prayer\n({time_str})",
+                    text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message(prayer)} prayer\n({time_str})",
                 )
                 sent_today[user_id][prayer] = today
         await asyncio.sleep(30)

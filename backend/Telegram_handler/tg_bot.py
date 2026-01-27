@@ -23,7 +23,10 @@ from aiogram.types import (
 )
 
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
-from backend.Database.qaza_stats import get_prayer_times, get_all_users
+from backend.Database.qaza_stats import (
+    get_prayer_times,
+    get_all_users,
+)
 from backend.Database.database import (
     insert_user,
     update_user,
@@ -46,8 +49,7 @@ dp = Dispatcher()
 # ======================
 # GLOBALS
 # ======================
-sent_today = {}  # for prayer duplicates
-scheduler_tasks = {}  # {user_id: {'prayer': task, 'pre': task}}
+scheduler_tasks = {}  # {user_id: {"prayer": task, "pre": task}}
 user_name = None
 waiting_for_city = False
 user_id = None
@@ -67,10 +69,16 @@ prayed_keyboard = InlineKeyboardMarkup(
 # ======================
 # PRAYER SCHEDULER
 # ======================
+sent_today = {}  # for prayer duplicates
+
 async def prayer_scheduler(bot: Bot, user_id: int):
     while True:
         now = datetime.now().strftime("%H:%M")
         today = datetime.now().date()
+
+        if user_id is None:
+            await asyncio.sleep(30)
+            continue
 
         prayer_times = get_prayer_times(user_id)
         if user_id not in sent_today:
@@ -90,15 +98,12 @@ async def prayer_scheduler(bot: Bot, user_id: int):
 
         await asyncio.sleep(30)
 
-
 def start_prayer_scheduler(bot: Bot, user_id: int):
     if user_id not in scheduler_tasks:
         scheduler_tasks[user_id] = {}
-
     if "prayer" not in scheduler_tasks[user_id]:
         task = asyncio.create_task(prayer_scheduler(bot, user_id))
         scheduler_tasks[user_id]["prayer"] = task
-
 
 # ======================
 # PRE-PRAYER REMINDER (10 MIN)
@@ -107,8 +112,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
     sent_pre = set()
     while True:
         prayer_times = get_prayer_times(user_id)
-        tz_name = prayer_times.get("timezone", "Asia/Seoul")
-        tz = ZoneInfo(tz_name)
+        tz = ZoneInfo(prayer_times["timezone"])
         now = datetime.now(tz)
 
         prayers = []
@@ -122,10 +126,12 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                 tzinfo=tz,
             )
             prayers.append((prayer, dt))
-        prayers.sort(key=lambda x: x[1])
 
+        prayers.sort(key=lambda x: x[1])
         future = [(p, dt) for p, dt in prayers if dt > now]
+
         if not future:
+            # all prayers passed → tomorrow
             prayers = [(p, dt + timedelta(days=1)) for p, dt in prayers]
             prayers.sort(key=lambda x: x[1])
             future = prayers
@@ -148,15 +154,12 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         await asyncio.sleep(20)
 
-
 def start_pre_prayer_scheduler(bot: Bot, user_id: int):
     if user_id not in scheduler_tasks:
         scheduler_tasks[user_id] = {}
-
     if "pre" not in scheduler_tasks[user_id]:
         task = asyncio.create_task(pre_prayer_scheduler(bot, user_id))
         scheduler_tasks[user_id]["pre"] = task
-
 
 # ======================
 # DAILY UPDATE
@@ -177,7 +180,6 @@ async def daily_prayer_times_updater():
             )
         await asyncio.sleep(86400)
 
-
 # ======================
 # START
 # ======================
@@ -191,7 +193,6 @@ async def command_start(message: Message):
         f"Hello, {html.bold(message.from_user.full_name)} 👋\nWhat is your name?"
     )
 
-
 # ======================
 # ENTER CITY MANUALLY CLICK
 # ======================
@@ -203,7 +204,6 @@ async def manual_city(message: Message):
         "Okay! Please type your city name (e.g., Seoul, Busan, Osh):",
         reply_markup=ReplyKeyboardRemove()
     )
-
 
 # ======================
 # HANDLE LOCATION
@@ -251,7 +251,6 @@ async def handle_location(message: Message):
 
     start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
-
 
 # ======================
 # HANDLE TEXT (NAME OR CITY)
@@ -324,11 +323,11 @@ async def handle_text(message: Message):
             reply_markup=ReplyKeyboardRemove()
         )
 
-        waiting_for_city = False
+        # ✅ start schedulers after manual city
         start_prayer_scheduler(message.bot, user_id)
         start_pre_prayer_scheduler(message.bot, user_id)
+        waiting_for_city = False
         return
-
 
 # ======================
 # MAIN
@@ -343,7 +342,6 @@ async def main():
     )
     asyncio.create_task(daily_prayer_times_updater())
     await dp.start_polling(bot, drop_pending_updates=True)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)

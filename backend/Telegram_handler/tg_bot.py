@@ -107,6 +107,8 @@ def start_prayer_scheduler(bot: Bot, user_id: int):
 # PRE-PRAYER REMINDER (10 MIN)
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
+    sent_today = set()  # prevent duplicates per prayer per day
+
     while True:
         prayer_times = get_prayer_times(user_id)
         tz = ZoneInfo(prayer_times["timezone"])
@@ -114,6 +116,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         prayers = []
 
+        # build prayer datetime list
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
                 continue
@@ -126,25 +129,48 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
             )
             prayers.append((prayer, dt))
 
-        future = [(p, dt) for p, dt in prayers if dt > now]
-        if not future:
-            future = [(p, dt + timedelta(days=1)) for p, dt in prayers]
+        # sort prayers by time
+        prayers.sort(key=lambda x: x[1])
 
-        next_prayer, next_dt = min(future, key=lambda x: x[1])
+        # find next prayer
+        future = [(p, dt) for p, dt in prayers if dt > now]
+
+        if not future:
+            # all prayers passed → tomorrow
+            prayers = [(p, dt + timedelta(days=1)) for p, dt in prayers]
+            prayers.sort(key=lambda x: x[1])
+            future = prayers
+
+        next_prayer, next_dt = future[0]
+
+        # current prayer = one before next prayer
+        idx = prayers.index((next_prayer, next_dt))
+        current_prayer, current_dt = prayers[idx - 1]
+
         reminder_dt = next_dt - timedelta(minutes=10)
 
         logging.info(
-            f"[PRE] user={user_id} next={next_prayer} "
-            f"reminder={reminder_dt.time()} now={now.time()}"
+            f"[PRE] user={user_id} "
+            f"current={current_prayer} "
+            f"reminder={reminder_dt.time()} "
+            f"now={now.time()}"
         )
 
+        # 🔔 reminder window (1 minute tolerance)
+        key = (current_prayer, reminder_dt.date())
+
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
-            await bot.send_message(
-                user_id,
-                f"⏰ {next_prayer.capitalize()} in 10 minutes.\nDid you pray already?"
-            )
-            await asyncio.sleep(70)
-            continue
+            if key not in sent_today:
+                await bot.send_message(
+                    user_id,
+                    f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\n"
+                    f"Have you prayed it already?"
+                )
+                sent_today.add(key)
+
+        # reset daily memory after midnight
+        if now.hour == 0 and now.minute == 0:
+            sent_today.clear()
 
         await asyncio.sleep(20)
 
@@ -236,7 +262,6 @@ async def handle_location(message: Message, state: FSMContext):
         )
 
     await message.answer(
-        "✅ Location received!\n\n"
         f"🕌 Today’s prayer times:\n"
         f"Fajr: {prayer_times['Fajr']}\n"
         f"Dhuhr: {prayer_times['Dhuhr']}\n"

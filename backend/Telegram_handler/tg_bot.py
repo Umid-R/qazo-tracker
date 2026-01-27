@@ -23,10 +23,7 @@ from aiogram.types import (
 )
 
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
-from backend.Database.qaza_stats import (
-    get_prayer_times,
-    get_all_users,
-)
+from backend.Database.qaza_stats import get_prayer_times, get_all_users
 from backend.Database.database import (
     insert_user,
     update_user,
@@ -49,7 +46,9 @@ dp = Dispatcher()
 # ======================
 # GLOBALS
 # ======================
-scheduler_tasks = {}  # {user_id: {"prayer": task, "pre": task}}
+sent_today = {}  # prevent duplicates
+prayer_scheduler_tasks = {}  # per-user prayer scheduler
+pre_prayer_scheduler_tasks = {}  # per-user pre-prayer scheduler
 user_name = None
 waiting_for_city = False
 user_id = None
@@ -69,18 +68,13 @@ prayed_keyboard = InlineKeyboardMarkup(
 # ======================
 # PRAYER SCHEDULER
 # ======================
-sent_today = {}  # for prayer duplicates
-
 async def prayer_scheduler(bot: Bot, user_id: int):
     while True:
-        now = datetime.now().strftime("%H:%M")
-        today = datetime.now().date()
-
-        if user_id is None:
-            await asyncio.sleep(30)
-            continue
-
         prayer_times = get_prayer_times(user_id)
+        tz = ZoneInfo(prayer_times["timezone"])
+        now = datetime.now(tz).strftime("%H:%M")
+        today = datetime.now(tz).date()
+
         if user_id not in sent_today:
             sent_today[user_id] = {}
 
@@ -95,15 +89,13 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                     text=f"🕌 Time for {prayer.capitalize()} prayer\n({time_str})",
                 )
                 sent_today[user_id][prayer] = today
-
         await asyncio.sleep(30)
 
 def start_prayer_scheduler(bot: Bot, user_id: int):
-    if user_id not in scheduler_tasks:
-        scheduler_tasks[user_id] = {}
-    if "prayer" not in scheduler_tasks[user_id]:
-        task = asyncio.create_task(prayer_scheduler(bot, user_id))
-        scheduler_tasks[user_id]["prayer"] = task
+    if user_id in prayer_scheduler_tasks:
+        return
+    task = asyncio.create_task(prayer_scheduler(bot, user_id))
+    prayer_scheduler_tasks[user_id] = task
 
 # ======================
 # PRE-PRAYER REMINDER (10 MIN)
@@ -120,18 +112,15 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
             if prayer == "timezone":
                 continue
             dt = datetime.strptime(time_str, "%H:%M").replace(
-                year=now.year,
-                month=now.month,
-                day=now.day,
-                tzinfo=tz,
+                year=now.year, month=now.month, day=now.day, tzinfo=tz
             )
             prayers.append((prayer, dt))
-
         prayers.sort(key=lambda x: x[1])
-        future = [(p, dt) for p, dt in prayers if dt > now]
 
+        # next prayer
+        future = [(p, dt) for p, dt in prayers if dt > now]
         if not future:
-            # all prayers passed → tomorrow
+            # next day
             prayers = [(p, dt + timedelta(days=1)) for p, dt in prayers]
             prayers.sort(key=lambda x: x[1])
             future = prayers
@@ -155,14 +144,13 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
         await asyncio.sleep(20)
 
 def start_pre_prayer_scheduler(bot: Bot, user_id: int):
-    if user_id not in scheduler_tasks:
-        scheduler_tasks[user_id] = {}
-    if "pre" not in scheduler_tasks[user_id]:
-        task = asyncio.create_task(pre_prayer_scheduler(bot, user_id))
-        scheduler_tasks[user_id]["pre"] = task
+    if user_id in pre_prayer_scheduler_tasks:
+        return
+    task = asyncio.create_task(pre_prayer_scheduler(bot, user_id))
+    pre_prayer_scheduler_tasks[user_id] = task
 
 # ======================
-# DAILY UPDATE
+# DAILY PRAYER TIMES UPDATER
 # ======================
 async def daily_prayer_times_updater():
     while True:
@@ -178,10 +166,10 @@ async def daily_prayer_times_updater():
                 prayer_times["Maghrib"],
                 prayer_times["Isha"],
             )
-        await asyncio.sleep(86400)
+        await asyncio.sleep(86400)  # 24 hours
 
 # ======================
-# START
+# COMMAND /START
 # ======================
 @dp.message(CommandStart())
 async def command_start(message: Message):
@@ -219,23 +207,23 @@ async def handle_location(message: Message):
         insert_user(id=user_id, name=user_name, lat=lat, lon=lon)
         insert_prayer_times(
             user_id,
-            prayer_times['Fajr'],
-            prayer_times['Sunrise'],
-            prayer_times['Dhuhr'],
-            prayer_times['Asr'],
-            prayer_times['Maghrib'],
-            prayer_times['Isha']
+            prayer_times["Fajr"],
+            prayer_times["Sunrise"],
+            prayer_times["Dhuhr"],
+            prayer_times["Asr"],
+            prayer_times["Maghrib"],
+            prayer_times["Isha"],
         )
     else:
         update_user(id=user_id, name=user_name, lat=lat, lon=lon)
         update_prayer_times(
             user_id,
-            prayer_times['Fajr'],
-            prayer_times['Sunrise'],
-            prayer_times['Dhuhr'],
-            prayer_times['Asr'],
-            prayer_times['Maghrib'],
-            prayer_times['Isha']
+            prayer_times["Fajr"],
+            prayer_times["Sunrise"],
+            prayer_times["Dhuhr"],
+            prayer_times["Asr"],
+            prayer_times["Maghrib"],
+            prayer_times["Isha"],
         )
 
     await message.answer(
@@ -249,6 +237,7 @@ async def handle_location(message: Message):
         reply_markup=ReplyKeyboardRemove()
     )
 
+    # start schedulers
     start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
 
@@ -259,9 +248,9 @@ async def handle_location(message: Message):
 async def handle_text(message: Message):
     global user_name, waiting_for_city, user_id
     if message.text == "🏙️ Enter City Manually":
-        return  # handled elsewhere
+        return
 
-    # STEP 1: get user name
+    # STEP 1: Get name
     if user_name is None:
         user_name = message.text.strip()
         waiting_for_city = False
@@ -270,7 +259,7 @@ async def handle_text(message: Message):
                 [KeyboardButton(text="📍 Send Location", request_location=True)],
                 [KeyboardButton(text="🏙️ Enter City Manually")],
             ],
-            resize_keyboard=True
+            resize_keyboard=True,
         )
         await message.answer(
             f"Nice to meet you, {user_name} 😊\nChoose an option:",
@@ -278,9 +267,10 @@ async def handle_text(message: Message):
         )
         return
 
-    # STEP 2: handle manual city
+    # STEP 2: Handle manual city input
     if waiting_for_city:
         city = message.text.strip()
+        waiting_for_city = False
         cors = get_cor_city(city.capitalize())
         if cors is None:
             await message.answer("Oops — city not found. Try again 😊")
@@ -293,23 +283,23 @@ async def handle_text(message: Message):
             insert_user(id=user_id, name=user_name, lat=float(cors[0]), lon=float(cors[1]))
             insert_prayer_times(
                 user_id,
-                prayer_times['Fajr'],
-                prayer_times['Sunrise'],
-                prayer_times['Dhuhr'],
-                prayer_times['Asr'],
-                prayer_times['Maghrib'],
-                prayer_times['Isha']
+                prayer_times["Fajr"],
+                prayer_times["Sunrise"],
+                prayer_times["Dhuhr"],
+                prayer_times["Asr"],
+                prayer_times["Maghrib"],
+                prayer_times["Isha"],
             )
         else:
             update_user(id=user_id, name=user_name, lat=float(cors[0]), lon=float(cors[1]))
             update_prayer_times(
                 user_id,
-                prayer_times['Fajr'],
-                prayer_times['Sunrise'],
-                prayer_times['Dhuhr'],
-                prayer_times['Asr'],
-                prayer_times['Maghrib'],
-                prayer_times['Isha']
+                prayer_times["Fajr"],
+                prayer_times["Sunrise"],
+                prayer_times["Dhuhr"],
+                prayer_times["Asr"],
+                prayer_times["Maghrib"],
+                prayer_times["Isha"],
             )
 
         await message.answer(
@@ -323,10 +313,9 @@ async def handle_text(message: Message):
             reply_markup=ReplyKeyboardRemove()
         )
 
-        # ✅ start schedulers after manual city
+        # start schedulers
         start_prayer_scheduler(message.bot, user_id)
         start_pre_prayer_scheduler(message.bot, user_id)
-        waiting_for_city = False
         return
 
 # ======================

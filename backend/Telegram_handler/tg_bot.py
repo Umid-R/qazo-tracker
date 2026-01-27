@@ -149,6 +149,10 @@ async def command_start(message: Message, state: FSMContext):
 # ======================
 @dp.message(Onboarding.waiting_for_name)
 async def handle_name(message: Message, state: FSMContext):
+    if not message.text:
+        await message.answer("Please send your name as text 😊")
+        return
+
     await state.update_data(user_name=message.text.strip())
 
     keyboard = ReplyKeyboardMarkup(

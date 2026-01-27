@@ -5,3 +5,4 @@ supabase
 timezonefinder
 uvicorn
 fastapi
+pydantic==2.5.3

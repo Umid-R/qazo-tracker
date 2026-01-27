@@ -21,6 +21,7 @@ from aiogram.types import (
     WebAppInfo,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    CallbackQuery
 )
 
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
@@ -320,6 +321,29 @@ async def handle_text(message: Message):
         start_pre_prayer_scheduler(message.bot, user_id)
         return
 
+
+# ======================
+# CALLBACK HANDLERS
+# ======================
+
+
+@dp.callback_query(F.data == "prayed_yes")
+async def handle_prayed_yes(query: CallbackQuery):
+    await query.bot.send_animation(
+        chat_id=query.from_user.id,       
+        animation=get_gif(type='yes')       
+    )
+    await query.answer()                  
+
+@dp.callback_query(F.data == "prayed_no")
+async def handle_prayed_no(query: CallbackQuery):
+    await query.bot.send_animation(
+        chat_id=query.from_user.id,
+        animation=get_gif(type='no')
+    )
+    await query.answer()
+
+    
 # ======================
 # MAIN
 # ======================

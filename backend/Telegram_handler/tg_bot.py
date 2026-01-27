@@ -288,12 +288,12 @@ async def main():
     )
 
     await bot.set_chat_menu_button(
-        MenuButtonWebApp(
-            chat_id=None,
-            text="🕌 Qaza Tracker",
-            web_app=WebAppInfo(url="https://jsur.vercel.app"),
-        )
-    )
+    chat_id=None,
+    menu_button=MenuButtonWebApp(
+        text="🕌 Qaza Tracker",
+        web_app=WebAppInfo(url="https://jsur.vercel.app"),
+    ),
+)
 
     asyncio.create_task(daily_prayer_times_updater())
     await dp.start_polling(bot, drop_pending_updates=True)

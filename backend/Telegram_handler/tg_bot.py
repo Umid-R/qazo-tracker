@@ -57,7 +57,7 @@ class Onboarding(StatesGroup):
 dp = Dispatcher(storage=MemoryStorage())
 
 # ======================
-# GLOBAL TASK REGISTRY
+# TASK REGISTRIES
 # ======================
 prayer_tasks = {}
 pre_prayer_tasks = {}
@@ -88,7 +88,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                 msg = get_prayer_message(prayer)
                 await bot.send_message(
                     user_id,
-                    f"🕌 Time for {prayer.capitalize()} prayer\n{msg}\n({time_str})"
+                    f"🕌 Time for {prayer.capitalize()} prayer\n{msg}\n({time_str})",
                 )
                 sent_today.add(prayer)
 
@@ -97,7 +97,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
 
         await asyncio.sleep(30)
 
-def start_prayer_scheduler(bot, user_id: int):
+def start_prayer_scheduler(bot: Bot, user_id: int):
     if user_id not in prayer_tasks:
         prayer_tasks[user_id] = asyncio.create_task(
             prayer_scheduler(bot, user_id)
@@ -112,7 +112,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
         tz = ZoneInfo(prayer_times["timezone"])
         now = datetime.now(tz)
 
-        prayer_list = []
+        prayers = []
 
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
@@ -124,21 +124,20 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                 day=now.day,
                 tzinfo=tz,
             )
-            prayer_list.append((prayer, dt))
+            prayers.append((prayer, dt))
 
-        future = [(p, dt) for p, dt in prayer_list if dt > now]
+        future = [(p, dt) for p, dt in prayers if dt > now]
         if not future:
-            future = [(p, dt + timedelta(days=1)) for p, dt in prayer_list]
+            future = [(p, dt + timedelta(days=1)) for p, dt in prayers]
 
-        next_prayer, next_prayer_dt = min(future, key=lambda x: x[1])
-        reminder_dt = next_prayer_dt - timedelta(minutes=10)
+        next_prayer, next_dt = min(future, key=lambda x: x[1])
+        reminder_dt = next_dt - timedelta(minutes=10)
 
         logging.info(
             f"[PRE] user={user_id} next={next_prayer} "
             f"reminder={reminder_dt.time()} now={now.time()}"
         )
 
-        # 🔑 WINDOW CHECK (this is what was missing)
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
             await bot.send_message(
                 user_id,
@@ -149,7 +148,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         await asyncio.sleep(20)
 
-def start_pre_prayer_scheduler(bot, user_id: int):
+def start_pre_prayer_scheduler(bot: Bot, user_id: int):
     if user_id not in pre_prayer_tasks:
         pre_prayer_tasks[user_id] = asyncio.create_task(
             pre_prayer_scheduler(bot, user_id)
@@ -175,7 +174,7 @@ async def daily_prayer_times_updater():
         await asyncio.sleep(86400)
 
 # ======================
-# START COMMAND
+# START
 # ======================
 @dp.message(CommandStart())
 async def start_cmd(message: Message, state: FSMContext):
@@ -190,13 +189,15 @@ async def start_cmd(message: Message, state: FSMContext):
 @dp.message(Onboarding.waiting_for_name, F.text)
 async def handle_name(message: Message, state: FSMContext):
     await state.update_data(user_name=message.text.strip())
+
     kb = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Send Location", request_location=True)],
-            [KeyboardButton(text="🏙️ Enter City Manually")]
+            [KeyboardButton(text="🏙️ Enter City Manually")],
         ],
         resize_keyboard=True,
     )
+
     await message.answer("Choose an option:", reply_markup=kb)
 
 # ======================
@@ -206,7 +207,7 @@ async def handle_name(message: Message, state: FSMContext):
 async def handle_location(message: Message, state: FSMContext):
     data = await state.get_data()
     user_id = message.from_user.id
-    name = data["user_name"]
+    name = data.get("user_name", message.from_user.full_name)
 
     lat, lon = message.location.latitude, message.location.longitude
     prayer_times = get_by_cor(lat, lon)
@@ -222,9 +223,32 @@ async def handle_location(message: Message, state: FSMContext):
             prayer_times["Maghrib"],
             prayer_times["Isha"],
         )
+    else:
+        update_user(user_id, name, lat, lon)
+        update_prayer_times(
+            user_id,
+            prayer_times["Fajr"],
+            prayer_times["Sunrise"],
+            prayer_times["Dhuhr"],
+            prayer_times["Asr"],
+            prayer_times["Maghrib"],
+            prayer_times["Isha"],
+        )
+
+    await message.answer(
+        "✅ Location received!\n\n"
+        f"🕌 Today’s prayer times:\n"
+        f"Fajr: {prayer_times['Fajr']}\n"
+        f"Dhuhr: {prayer_times['Dhuhr']}\n"
+        f"Asr: {prayer_times['Asr']}\n"
+        f"Maghrib: {prayer_times['Maghrib']}\n"
+        f"Isha: {prayer_times['Isha']}",
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
     start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
+
     await state.clear()
 
 # ======================

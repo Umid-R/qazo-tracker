@@ -65,7 +65,7 @@ prayer_tasks = {}
 pre_prayer_tasks = {}
 
 # ======================
-# INLINE BUTTONS (✅ ❌)
+# INLINE BUTTONS (ONLY FOR WARNING)
 # ======================
 prayed_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -77,7 +77,7 @@ prayed_keyboard = InlineKeyboardMarkup(
 )
 
 # ======================
-# PRAYER TIME MESSAGE
+# PRAYER TIME MESSAGE (NO BUTTONS)
 # ======================
 async def prayer_scheduler(bot: Bot, user_id: int):
     sent_today = set()
@@ -103,7 +103,6 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                 await bot.send_message(
                     user_id,
                     f"🕌 Time for {prayer.capitalize()} prayer\n{msg}\n({time_str})",
-                    reply_markup=prayed_keyboard,
                 )
                 sent_today.add(prayer)
 
@@ -119,7 +118,7 @@ def start_prayer_scheduler(bot: Bot, user_id: int):
         )
 
 # ======================
-# PRE-PRAYER REMINDER (10 MIN)
+# PRE-PRAYER REMINDER (10 MIN) — BUTTONS HERE ONLY
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
     sent_today = set()

@@ -59,10 +59,52 @@ dp = Dispatcher(storage=MemoryStorage())
 # ======================
 # GLOBAL TASK REGISTRY
 # ======================
-pre_prayer_tasks: dict[int, asyncio.Task] = {}
+prayer_tasks = {}
+pre_prayer_tasks = {}
 
 # ======================
-# PRE-PRAYER SCHEDULER (CORRECT)
+# PRAYER TIME MESSAGE
+# ======================
+async def prayer_scheduler(bot: Bot, user_id: int):
+    sent_today = set()
+
+    while True:
+        prayer_times = get_prayer_times(user_id)
+        tz = ZoneInfo(prayer_times["timezone"])
+        now = datetime.now(tz).replace(second=0, microsecond=0)
+
+        for prayer, time_str in prayer_times.items():
+            if prayer == "timezone":
+                continue
+
+            prayer_dt = datetime.strptime(time_str, "%H:%M").replace(
+                year=now.year,
+                month=now.month,
+                day=now.day,
+                tzinfo=tz,
+            )
+
+            if prayer_dt == now and prayer not in sent_today:
+                msg = get_prayer_message(prayer)
+                await bot.send_message(
+                    user_id,
+                    f"🕌 Time for {prayer.capitalize()} prayer\n{msg}\n({time_str})"
+                )
+                sent_today.add(prayer)
+
+        if now.hour == 0 and now.minute == 0:
+            sent_today.clear()
+
+        await asyncio.sleep(30)
+
+def start_prayer_scheduler(bot, user_id: int):
+    if user_id not in prayer_tasks:
+        prayer_tasks[user_id] = asyncio.create_task(
+            prayer_scheduler(bot, user_id)
+        )
+
+# ======================
+# PRE-PRAYER REMINDER (10 MIN)
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
     while True:
@@ -70,137 +112,107 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
         tz = ZoneInfo(prayer_times["timezone"])
         now = datetime.now(tz)
 
-        prayer_datetimes = []
+        prayer_list = []
 
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
                 continue
 
-            prayer_time = datetime.strptime(time_str, "%H:%M").time()
-            prayer_dt = datetime.combine(now.date(), prayer_time, tzinfo=tz)
-            prayer_datetimes.append((prayer, prayer_dt))
+            dt = datetime.strptime(time_str, "%H:%M").replace(
+                year=now.year,
+                month=now.month,
+                day=now.day,
+                tzinfo=tz,
+            )
+            prayer_list.append((prayer, dt))
 
-        # get next prayer (today or tomorrow)
-        future_prayers = [(p, dt) for p, dt in prayer_datetimes if dt > now]
-        if not future_prayers:
-            future_prayers = [(p, dt + timedelta(days=1)) for p, dt in prayer_datetimes]
+        future = [(p, dt) for p, dt in prayer_list if dt > now]
+        if not future:
+            future = [(p, dt + timedelta(days=1)) for p, dt in prayer_list]
 
-        next_prayer, next_prayer_dt = min(future_prayers, key=lambda x: x[1])
-        reminder_time = next_prayer_dt - timedelta(minutes=10)
+        next_prayer, next_prayer_dt = min(future, key=lambda x: x[1])
+        reminder_dt = next_prayer_dt - timedelta(minutes=10)
 
         logging.info(
             f"[PRE] user={user_id} next={next_prayer} "
-            f"reminder={reminder_time.time()} now={now.time()}"
+            f"reminder={reminder_dt.time()} now={now.time()}"
         )
 
-        # If reminder already passed, retry shortly
-        if reminder_time <= now:
-            await asyncio.sleep(30)
+        # 🔑 WINDOW CHECK (this is what was missing)
+        if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
+            await bot.send_message(
+                user_id,
+                f"⏰ {next_prayer.capitalize()} in 10 minutes.\nDid you pray already?"
+            )
+            await asyncio.sleep(70)
             continue
 
-        await asyncio.sleep((reminder_time - now).total_seconds())
+        await asyncio.sleep(20)
 
-        await bot.send_message(
-            user_id,
-            f"⏰ {next_prayer.capitalize()} prayer in 10 minutes.\nDid you pray already?"
+def start_pre_prayer_scheduler(bot, user_id: int):
+    if user_id not in pre_prayer_tasks:
+        pre_prayer_tasks[user_id] = asyncio.create_task(
+            pre_prayer_scheduler(bot, user_id)
         )
 
-        # buffer so it never resends
-        await asyncio.sleep(60)
-
-def start_pre_prayer_scheduler(bot: Bot, user_id: int):
-    if user_id in pre_prayer_tasks:
-        return
-    pre_prayer_tasks[user_id] = asyncio.create_task(
-        pre_prayer_scheduler(bot, user_id)
-    )
-
 # ======================
-# DAILY PRAYER UPDATE
+# DAILY UPDATE
 # ======================
-async def sleep_until_next_day():
-    now = datetime.now(timezone.utc)
-    next_run = (now + timedelta(days=1)).replace(
-        hour=0, minute=5, second=0, microsecond=0
-    )
-    await asyncio.sleep((next_run - now).total_seconds())
-
 async def daily_prayer_times_updater():
     while True:
         users = get_all_users()
         for user in users:
-            try:
-                prayer_times = get_by_cor(user["lat"], user["lon"])
-                update_prayer_times(
-                    user["id"],
-                    prayer_times["Fajr"],
-                    prayer_times["Sunrise"],
-                    prayer_times["Dhuhr"],
-                    prayer_times["Asr"],
-                    prayer_times["Maghrib"],
-                    prayer_times["Isha"],
-                )
-            except Exception as e:
-                logging.error(f"[DAILY] Failed for {user['id']}: {e}")
-
-        await sleep_until_next_day()
+            prayer_times = get_by_cor(user["lat"], user["lon"])
+            update_prayer_times(
+                user["id"],
+                prayer_times["Fajr"],
+                prayer_times["Sunrise"],
+                prayer_times["Dhuhr"],
+                prayer_times["Asr"],
+                prayer_times["Maghrib"],
+                prayer_times["Isha"],
+            )
+        await asyncio.sleep(86400)
 
 # ======================
 # START COMMAND
 # ======================
 @dp.message(CommandStart())
-async def command_start(message: Message, state: FSMContext):
+async def start_cmd(message: Message, state: FSMContext):
     await state.set_state(Onboarding.waiting_for_name)
     await message.answer(
-        f"Hello, {html.bold(message.from_user.full_name)} 👋\nWhat is your name?"
+        f"Hello {html.bold(message.from_user.full_name)} 👋\nWhat is your name?"
     )
 
 # ======================
-# NAME HANDLER
+# NAME
 # ======================
 @dp.message(Onboarding.waiting_for_name, F.text)
 async def handle_name(message: Message, state: FSMContext):
     await state.update_data(user_name=message.text.strip())
-
-    keyboard = ReplyKeyboardMarkup(
+    kb = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📍 Send Location", request_location=True)],
-            [KeyboardButton(text="🏙️ Enter City Manually")],
+            [KeyboardButton(text="🏙️ Enter City Manually")]
         ],
         resize_keyboard=True,
     )
-
-    await message.answer(
-        f"Nice to meet you, {message.text.strip()} 😊\nChoose an option:",
-        reply_markup=keyboard,
-    )
+    await message.answer("Choose an option:", reply_markup=kb)
 
 # ======================
-# MANUAL CITY BUTTON
-# ======================
-@dp.message(F.text == "🏙️ Enter City Manually")
-async def manual_city(message: Message, state: FSMContext):
-    await state.set_state(Onboarding.waiting_for_city)
-    await message.answer(
-        "Okay! Please type your city name:",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-# ======================
-# LOCATION HANDLER
+# LOCATION
 # ======================
 @dp.message(F.location)
 async def handle_location(message: Message, state: FSMContext):
     data = await state.get_data()
-    user_name = data.get("user_name")
     user_id = message.from_user.id
+    name = data["user_name"]
 
-    lat = message.location.latitude
-    lon = message.location.longitude
+    lat, lon = message.location.latitude, message.location.longitude
     prayer_times = get_by_cor(lat, lon)
 
     if not is_user_exist(user_id):
-        insert_user(user_id, user_name, lat, lon)
+        insert_user(user_id, name, lat, lon)
         insert_prayer_times(
             user_id,
             prayer_times["Fajr"],
@@ -210,82 +222,8 @@ async def handle_location(message: Message, state: FSMContext):
             prayer_times["Maghrib"],
             prayer_times["Isha"],
         )
-    else:
-        update_user(user_id, user_name, lat, lon)
-        update_prayer_times(
-            user_id,
-            prayer_times["Fajr"],
-            prayer_times["Sunrise"],
-            prayer_times["Dhuhr"],
-            prayer_times["Asr"],
-            prayer_times["Maghrib"],
-            prayer_times["Isha"],
-        )
 
-    await message.answer(
-        f"🕌 Prayer times:\n"
-        f"Fajr: {prayer_times['Fajr']}\n"
-        f"Sunrise: {prayer_times['Sunrise']}\n"
-        f"Dhuhr: {prayer_times['Dhuhr']}\n"
-        f"Asr: {prayer_times['Asr']}\n"
-        f"Maghrib: {prayer_times['Maghrib']}\n"
-        f"Isha: {prayer_times['Isha']}",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-    start_pre_prayer_scheduler(message.bot, user_id)
-    await state.clear()
-
-# ======================
-# CITY TEXT HANDLER
-# ======================
-@dp.message(Onboarding.waiting_for_city)
-async def handle_city(message: Message, state: FSMContext):
-    data = await state.get_data()
-    user_name = data.get("user_name")
-    user_id = message.from_user.id
-
-    cors = get_cor_city(message.text.strip().capitalize())
-    if cors is None:
-        await message.answer("City not found 😅 Try again.")
-        return
-
-    prayer_times = get_by_cor(float(cors[0]), float(cors[1]))
-
-    if not is_user_exist(user_id):
-        insert_user(user_id, user_name, float(cors[0]), float(cors[1]))
-        insert_prayer_times(
-            user_id,
-            prayer_times["Fajr"],
-            prayer_times["Sunrise"],
-            prayer_times["Dhuhr"],
-            prayer_times["Asr"],
-            prayer_times["Maghrib"],
-            prayer_times["Isha"],
-        )
-    else:
-        update_user(user_id, user_name, float(cors[0]), float(cors[1]))
-        update_prayer_times(
-            user_id,
-            prayer_times["Fajr"],
-            prayer_times["Sunrise"],
-            prayer_times["Dhuhr"],
-            prayer_times["Asr"],
-            prayer_times["Maghrib"],
-            prayer_times["Isha"],
-        )
-
-    await message.answer(
-        f"🕌 Prayer times:\n"
-        f"Fajr: {prayer_times['Fajr']}\n"
-        f"Sunrise: {prayer_times['Sunrise']}\n"
-        f"Dhuhr: {prayer_times['Dhuhr']}\n"
-        f"Asr: {prayer_times['Asr']}\n"
-        f"Maghrib: {prayer_times['Maghrib']}\n"
-        f"Isha: {prayer_times['Isha']}",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
+    start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
     await state.clear()
 
@@ -307,7 +245,7 @@ async def main():
     )
 
     asyncio.create_task(daily_prayer_times_updater())
-    await dp.start_polling(bot, drop_pending_updates=True)
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)

@@ -23,7 +23,7 @@ from aiogram.types import (
 )
 
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
-from backend.Database.qaza_stats import get_prayer_times, get_all_users, get_prayer_message
+from backend.Database.qaza_stats import get_prayer_times, get_all_users, get_prayer_message, get_gif
 from backend.Database.database import (
     insert_user,
     update_user,
@@ -134,10 +134,11 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
             if key not in sent_pre:
-                await bot.send_message(
-                    user_id,
-                    f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
-                    reply_markup=prayed_keyboard,
+                await bot.send_animation(
+                    chat_id=user_id,
+                    animation=get_gif(type='judging'),
+                    caption=f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
+                    reply_markup=prayed_keyboard
                 )
                 sent_pre.add(key)
 

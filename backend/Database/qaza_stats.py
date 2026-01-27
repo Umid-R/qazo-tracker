@@ -235,7 +235,18 @@ def get_prayer_times(user_id : int):
     return res.data[0]
 
 
-print(get_prayer_times(1207972222))
+
+def get_gif(type):
+    res = (
+        Client
+        .table("gifs")
+        .select("url")
+        .eq("type", type)
+        .execute()
+    )
+    
+    return random.choice(res.data)['url']
+    
 
 
     

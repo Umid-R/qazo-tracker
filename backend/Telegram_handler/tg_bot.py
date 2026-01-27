@@ -18,6 +18,8 @@ from aiogram.types import (
     ReplyKeyboardRemove,
     MenuButtonWebApp,
     WebAppInfo,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
 )
 
 from aiogram.fsm.state import StatesGroup, State
@@ -63,6 +65,18 @@ prayer_tasks = {}
 pre_prayer_tasks = {}
 
 # ======================
+# INLINE BUTTONS (✅ ❌)
+# ======================
+prayed_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅", callback_data="prayed_yes"),
+            InlineKeyboardButton(text="❌", callback_data="prayed_no"),
+        ]
+    ]
+)
+
+# ======================
 # PRAYER TIME MESSAGE
 # ======================
 async def prayer_scheduler(bot: Bot, user_id: int):
@@ -89,6 +103,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                 await bot.send_message(
                     user_id,
                     f"🕌 Time for {prayer.capitalize()} prayer\n{msg}\n({time_str})",
+                    reply_markup=prayed_keyboard,
                 )
                 sent_today.add(prayer)
 
@@ -107,7 +122,7 @@ def start_prayer_scheduler(bot: Bot, user_id: int):
 # PRE-PRAYER REMINDER (10 MIN)
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
-    sent_today = set()  # prevent duplicates per prayer per day
+    sent_today = set()
 
     while True:
         prayer_times = get_prayer_times(user_id)
@@ -116,7 +131,6 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         prayers = []
 
-        # build prayer datetime list
         for prayer, time_str in prayer_times.items():
             if prayer == "timezone":
                 continue
@@ -129,34 +143,19 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
             )
             prayers.append((prayer, dt))
 
-        # sort prayers by time
         prayers.sort(key=lambda x: x[1])
-
-        # find next prayer
         future = [(p, dt) for p, dt in prayers if dt > now]
 
         if not future:
-            # all prayers passed → tomorrow
             prayers = [(p, dt + timedelta(days=1)) for p, dt in prayers]
             prayers.sort(key=lambda x: x[1])
             future = prayers
 
         next_prayer, next_dt = future[0]
-
-        # current prayer = one before next prayer
         idx = prayers.index((next_prayer, next_dt))
         current_prayer, current_dt = prayers[idx - 1]
 
         reminder_dt = next_dt - timedelta(minutes=10)
-
-        logging.info(
-            f"[PRE] user={user_id} "
-            f"current={current_prayer} "
-            f"reminder={reminder_dt.time()} "
-            f"now={now.time()}"
-        )
-
-        # 🔔 reminder window (1 minute tolerance)
         key = (current_prayer, reminder_dt.date())
 
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
@@ -164,11 +163,11 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                 await bot.send_message(
                     user_id,
                     f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\n"
-                    f"Have you prayed it already?"
+                    f"Have you prayed it already?",
+                    reply_markup=prayed_keyboard,
                 )
                 sent_today.add(key)
 
-        # reset daily memory after midnight
         if now.hour == 0 and now.minute == 0:
             sent_today.clear()
 

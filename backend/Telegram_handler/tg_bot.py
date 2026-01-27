@@ -1,3 +1,4 @@
+#####
 import sys
 import os
 import asyncio
@@ -131,7 +132,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         reminder_dt = next_dt - timedelta(minutes=10)
         key = (current_prayer, reminder_dt.date())
-
+   
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
             if key not in sent_pre:
                 await bot.send_animation(

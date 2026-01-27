@@ -61,6 +61,7 @@ dp = Dispatcher(storage=MemoryStorage())
 # ======================
 sent_today = {}
 scheduler_tasks = {}  # {user_id: asyncio.Task}
+pre_prayer_tasks = {}  # {user_id: asyncio.Task}
 
 # ======================
 # PRAYER SCHEDULER
@@ -133,6 +134,69 @@ async def daily_prayer_times_updater():
                 print(f"[DAILY] Failed for {user['id']}: {e}")
 
         await sleep_until_next_day()
+
+
+async def pre_prayer_scheduler(bot, user_id: int):
+    while True:
+        prayer_times = get_prayer_times(user_id)
+        tz = ZoneInfo(prayer_times["timezone"])
+        now = datetime.now(tz)
+
+        prayer_datetimes = []
+
+        for prayer, time_str in prayer_times.items():
+            if prayer == "timezone":
+                continue
+
+            prayer_time = datetime.strptime(time_str, "%H:%M").time()
+
+            prayer_dt = datetime.combine(
+                now.date(),
+                prayer_time,
+                tzinfo=tz,
+            )
+
+            prayer_datetimes.append((prayer, prayer_dt))
+
+        # if all prayers passed → move to tomorrow
+        future_prayers = [
+            (p, dt) for p, dt in prayer_datetimes if dt > now
+        ]
+
+        if not future_prayers:
+            future_prayers = [
+                (p, dt + timedelta(days=1))
+                for p, dt in prayer_datetimes
+            ]
+
+        next_prayer, next_prayer_dt = min(
+            future_prayers, key=lambda x: x[1]
+        )
+
+        reminder_time = next_prayer_dt - timedelta(minutes=10)
+
+        # if reminder already passed, just retry fast
+        if reminder_time <= now:
+            await asyncio.sleep(30)
+            continue
+
+        await asyncio.sleep((reminder_time - now).total_seconds())
+
+        await bot.send_message(
+            user_id,
+            f"⏰ {next_prayer.capitalize()} prayer in 10 minutes.\nDid you pray already?"
+        )
+
+        # small buffer so it doesn't resend
+        await asyncio.sleep(60)
+        
+def start_pre_prayer_scheduler(bot, user_id: int):
+    if user_id in pre_prayer_tasks:
+        return
+    pre_prayer_tasks[user_id] = asyncio.create_task(
+        pre_prayer_scheduler(bot, user_id)
+    )
+    
 
 # ======================
 # START COMMAND
@@ -223,6 +287,7 @@ async def handle_location(message: Message, state: FSMContext):
     )
 
     start_prayer_scheduler(message.bot, user_id)
+    start_pre_prayer_scheduler(message.bot, user_id)
     await state.clear()
 
 # ======================
@@ -276,6 +341,7 @@ async def handle_city(message: Message, state: FSMContext):
     )
 
     start_prayer_scheduler(message.bot, user_id)
+    start_pre_prayer_scheduler(message.bot, user_id)
     await state.clear()
 
 # ======================

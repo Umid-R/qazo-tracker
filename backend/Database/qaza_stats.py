@@ -235,6 +235,8 @@ def get_prayer_times(user_id : int):
     return res.data[0]
 
 
+print(get_prayer_times(1207972222))
+
 
     
     

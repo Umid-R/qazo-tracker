@@ -23,7 +23,7 @@ from aiogram.types import (
 )
 
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
-from backend.Database.qaza_stats import get_prayer_times, get_all_users
+from backend.Database.qaza_stats import get_prayer_times, get_all_users, get_prayer_message
 from backend.Database.database import (
     insert_user,
     update_user,
@@ -86,7 +86,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                     continue
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"🕌 Time for {prayer.capitalize()} prayer\n({time_str})",
+                    text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message()} prayer\n({time_str})",
                 )
                 sent_today[user_id][prayer] = today
         await asyncio.sleep(30)

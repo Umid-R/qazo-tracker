@@ -225,6 +225,73 @@ async def handle_name(message: Message, state: FSMContext):
     await message.answer("Choose an option:", reply_markup=kb)
 
 # ======================
+# HANDLE MANUAL CITY OPTION
+# ======================
+@dp.message(Onboarding.waiting_for_name, F.text)
+async def handle_city_option(message: Message, state: FSMContext):
+    if message.text == "🏙️ Enter City Manually":
+        await state.set_state(Onboarding.waiting_for_city)
+        await message.answer("Please type your city name:")
+
+# ======================
+# HANDLE USER ENTERED CITY
+# ======================
+@dp.message(Onboarding.waiting_for_city, F.text)
+async def handle_manual_city(message: Message, state: FSMContext):
+    data = await state.get_data()
+    user_id = message.from_user.id
+    name = data.get("user_name", message.from_user.full_name)
+    city_name = message.text.strip()
+
+    try:
+        lat, lon = get_cor_city(city_name)
+        if lat is None or lon is None:
+            raise ValueError("City not found")
+    except Exception:
+        await message.answer("Oops - city not found. Try again 😊")
+        return  # user can try again
+
+    prayer_times = get_by_cor(lat, lon)
+
+    if not is_user_exist(user_id):
+        insert_user(user_id, name, lat, lon)
+        insert_prayer_times(
+            user_id,
+            prayer_times["Fajr"],
+            prayer_times["Sunrise"],
+            prayer_times["Dhuhr"],
+            prayer_times["Asr"],
+            prayer_times["Maghrib"],
+            prayer_times["Isha"],
+        )
+    else:
+        update_user(user_id, name, lat, lon)
+        update_prayer_times(
+            user_id,
+            prayer_times["Fajr"],
+            prayer_times["Sunrise"],
+            prayer_times["Dhuhr"],
+            prayer_times["Asr"],
+            prayer_times["Maghrib"],
+            prayer_times["Isha"],
+        )
+
+    await message.answer(
+        f"🕌 Today’s prayer times:\n"
+        f"Fajr: {prayer_times['Fajr']}\n"
+        f"Dhuhr: {prayer_times['Dhuhr']}\n"
+        f"Asr: {prayer_times['Asr']}\n"
+        f"Maghrib: {prayer_times['Maghrib']}\n"
+        f"Isha: {prayer_times['Isha']}",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+
+    start_prayer_scheduler(message.bot, user_id)
+    start_pre_prayer_scheduler(message.bot, user_id)
+
+    await state.clear()
+
+# ======================
 # LOCATION
 # ======================
 @dp.message(F.location)

@@ -91,6 +91,19 @@ def is_user_exist(id):
         return True
     return False
 
+def add_qaza(prayer, user_id, reason=None):
+    response = Client.table('qazas').insert({
+        'user_id': user_id,
+        'prayer': prayer,
+        'reason': reason
+    }).execute()
+    
+    
+    
+    return 1
+    
+
+
 
 
 

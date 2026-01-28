@@ -23,6 +23,9 @@ from aiogram.types import (
     InlineKeyboardButton,
     CallbackQuery
 )
+from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
 
 from backend.Telegram_handler.prayer_times import get_by_cor, get_cor_city
 from backend.Database.qaza_stats import get_prayer_times, get_all_users, get_prayer_message, get_gif
@@ -41,22 +44,26 @@ load_dotenv()
 access_token = os.getenv("TELEGRAM_TOKEN")
 
 # ======================
-# DISPATCHER
+# FSM STATES (ADDED TO FIX GLOBAL VARIABLE BUG)
 # ======================
-dp = Dispatcher()
+class UserRegistration(StatesGroup):
+    waiting_for_name = State()
+    waiting_for_city = State()
 
 # ======================
-# GLOBALS
+# DISPATCHER (ADDED MemoryStorage FOR FSM)
+# ======================
+dp = Dispatcher(storage=MemoryStorage())
+
+# ======================
+# GLOBALS (KEPT EXACTLY AS YOU HAD THEM)
 # ======================
 sent_today = {}  # prevent duplicates
 prayer_scheduler_tasks = {}  # per-user prayer scheduler
 pre_prayer_scheduler_tasks = {}  # per-user pre-prayer scheduler
-user_name = None
-waiting_for_city = False
-user_id = None
 
 # ======================
-# INLINE BUTTONS (10-MIN WARNING)
+# INLINE BUTTONS (10-MIN WARNING) - UNCHANGED
 # ======================
 prayed_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -68,7 +75,7 @@ prayed_keyboard = InlineKeyboardMarkup(
 )
 
 # ======================
-# PRAYER SCHEDULER
+# PRAYER SCHEDULER - UNCHANGED
 # ======================
 async def prayer_scheduler(bot: Bot, user_id: int):
     while True:
@@ -100,7 +107,7 @@ def start_prayer_scheduler(bot: Bot, user_id: int):
     prayer_scheduler_tasks[user_id] = task
 
 # ======================
-# PRE-PRAYER REMINDER (10 MIN)
+# PRE-PRAYER REMINDER (10 MIN) - UNCHANGED
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
     sent_pre = set()
@@ -153,7 +160,7 @@ def start_pre_prayer_scheduler(bot: Bot, user_id: int):
     pre_prayer_scheduler_tasks[user_id] = task
 
 # ======================
-# DAILY PRAYER TIMES UPDATER
+# DAILY PRAYER TIMES UPDATER - UNCHANGED
 # ======================
 async def daily_prayer_times_updater():
     while True:
@@ -172,36 +179,35 @@ async def daily_prayer_times_updater():
         await asyncio.sleep(86400)  # 24 hours
 
 # ======================
-# COMMAND /START
+# COMMAND /START - FIXED TO USE FSM
 # ======================
 @dp.message(CommandStart())
-async def command_start(message: Message):
-    global user_name, waiting_for_city, user_id
-    user_name = None
-    waiting_for_city = False
-    user_id = message.from_user.id
+async def command_start(message: Message, state: FSMContext):
+    await state.set_state(UserRegistration.waiting_for_name)
     await message.answer(
         f"Hello, {html.bold(message.from_user.full_name)} 👋\nWhat is your name?"
     )
 
 # ======================
-# ENTER CITY MANUALLY CLICK
+# ENTER CITY MANUALLY CLICK - FIXED TO USE FSM
 # ======================
 @dp.message(F.text == "🏙️ Enter City Manually")
-async def manual_city(message: Message):
-    global waiting_for_city
-    waiting_for_city = True
+async def manual_city(message: Message, state: FSMContext):
+    await state.set_state(UserRegistration.waiting_for_city)
     await message.answer(
         "Okay! Please type your city name (e.g., Seoul, Busan, Osh):",
         reply_markup=ReplyKeyboardRemove()
     )
 
 # ======================
-# HANDLE LOCATION
+# HANDLE LOCATION - FIXED TO USE FSM
 # ======================
 @dp.message(F.location)
-async def handle_location(message: Message):
-    global user_name, user_id
+async def handle_location(message: Message, state: FSMContext):
+    data = await state.get_data()
+    user_name = data.get("user_name")
+    user_id = message.from_user.id
+    
     lat = message.location.latitude
     lon = message.location.longitude
     prayer_times = get_by_cor(lat=lat, lon=lon)
@@ -243,20 +249,24 @@ async def handle_location(message: Message):
     # start schedulers
     start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
+    
+    await state.clear()
 
 # ======================
-# HANDLE TEXT (NAME OR CITY)
+# HANDLE TEXT (NAME OR CITY) - FIXED TO USE FSM
 # ======================
 @dp.message(F.text)
-async def handle_text(message: Message):
-    global user_name, waiting_for_city, user_id
+async def handle_text(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    
     if message.text == "🏙️ Enter City Manually":
         return
 
     # STEP 1: Get name
-    if user_name is None:
+    if current_state == UserRegistration.waiting_for_name:
         user_name = message.text.strip()
-        waiting_for_city = False
+        await state.update_data(user_name=user_name)
+        
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="📍 Send Location", request_location=True)],
@@ -271,13 +281,15 @@ async def handle_text(message: Message):
         return
 
     # STEP 2: Handle manual city input
-    if waiting_for_city:
+    if current_state == UserRegistration.waiting_for_city:
+        data = await state.get_data()
+        user_name = data.get("user_name")
+        user_id = message.from_user.id
+        
         city = message.text.strip()
-        waiting_for_city = False
         cors = get_cor_city(city.capitalize())
         if cors is None:
             await message.answer("Oops — city not found. Try again 😊")
-            waiting_for_city = True
             return
 
         prayer_times = get_by_cor(float(cors[0]), float(cors[1]))
@@ -319,11 +331,13 @@ async def handle_text(message: Message):
         # start schedulers
         start_prayer_scheduler(message.bot, user_id)
         start_pre_prayer_scheduler(message.bot, user_id)
+        
+        await state.clear()
         return
 
 
 # ======================
-# CALLBACK HANDLERS
+# CALLBACK HANDLERS - UNCHANGED
 # ======================
 
 
@@ -345,7 +359,7 @@ async def handle_prayed_no(query: CallbackQuery):
 
     
 # ======================
-# MAIN
+# MAIN - UNCHANGED
 # ======================
 async def main():
     bot = Bot(token=access_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))

@@ -2,6 +2,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 from timezonefinder import TimezoneFinder
+from datetime import datetime, timezone
 load_dotenv()
 
 
@@ -101,7 +102,39 @@ def add_qaza(prayer, user_id, reason=None):
     
     
     return 1
+
+def update_qaza(prayer, user_id):
     
+    response = (
+        Client.table('qazas')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('prayer', prayer)
+        .order('time_created', desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if not response.data:
+        return 0  
+
+    prayer_id = response.data[0]['id']
+
+    
+    response = (
+        Client.table('qazas')
+        .update({
+            'is_qaza': False,
+            'time_prayed': 'now()'
+        })
+        .eq('id', prayer_id)
+        .execute()
+    )
+
+    return 1
+# add_qaza('fajr',1207972222,'sleep')
+# update_qaza('fajr',1207972222)
+
 
 
 

@@ -35,6 +35,7 @@ from backend.Database.database import (
     is_user_exist,
     insert_prayer_times,
     update_prayer_times,
+    add_qaza
 )
 
 # ======================
@@ -61,6 +62,8 @@ dp = Dispatcher(storage=MemoryStorage())
 sent_today = {}  # prevent duplicates
 prayer_scheduler_tasks = {}  # per-user prayer scheduler
 pre_prayer_scheduler_tasks = {}  # per-user pre-prayer scheduler
+last_warned_prayer = {}
+
 
 # ======================
 # INLINE BUTTONS (10-MIN WARNING) - UNCHANGED
@@ -163,6 +166,8 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                     reply_markup=prayed_keyboard
                 )
                 sent_pre.add(key)
+                
+                last_warned_prayer[user_id] = current_prayer
                 
                 
 
@@ -371,16 +376,30 @@ async def handle_prayed_yes(query: CallbackQuery):
 
 @dp.callback_query(F.data == "prayed_no")
 async def handle_prayed_no(query: CallbackQuery):
+    user_id = query.from_user.id
+    
+    # Get prayer and add to qaza
+    prayer_name = last_warned_prayer.get(user_id, "unknown")
+    
+    if prayer_name != "unknown":
+        add_qaza(prayer_name, user_id)
+    
+    # 🔥 Remove from tracking after response
+    if user_id in last_warned_prayer:
+        del last_warned_prayer[user_id]
+    
     sent_message = await query.bot.send_animation(
-        chat_id=query.from_user.id,
+        chat_id=user_id,
         animation=get_gif(type='no')
     )
     await query.answer()
     
-    
     asyncio.create_task(
-        delete_message_after(query.bot, query.from_user.id, sent_message.message_id, 10)
+        delete_message_after(query.bot, user_id, sent_message.message_id, 10)
     )
+    
+    
+    
 
     
 # ======================

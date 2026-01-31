@@ -156,7 +156,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
    
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
             if key not in sent_pre:
-                sent_message = await bot.send_animation(
+                await bot.send_animation(
                     chat_id=user_id,
                     animation=get_gif(type='judging'),
                     caption=f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
@@ -164,9 +164,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                 )
                 sent_pre.add(key)
                 
-                asyncio.create_task(
-                    delete_message_after(bot, user_id, sent_message.message_id, 10)
-                )
+                
 
         await asyncio.sleep(20)
 
@@ -360,19 +358,29 @@ async def handle_text(message: Message, state: FSMContext):
 
 @dp.callback_query(F.data == "prayed_yes")
 async def handle_prayed_yes(query: CallbackQuery):
-    await query.bot.send_animation(
+    sent_message = await query.bot.send_animation(
         chat_id=query.from_user.id,       
         animation=get_gif(type='yes')       
     )
-    await query.answer()                  
+    await query.answer() 
+    
+    
+    asyncio.create_task(
+        delete_message_after(query.bot, query.from_user.id, sent_message.message_id, 10)
+    )             
 
 @dp.callback_query(F.data == "prayed_no")
 async def handle_prayed_no(query: CallbackQuery):
-    await query.bot.send_animation(
+    sent_message = await query.bot.send_animation(
         chat_id=query.from_user.id,
         animation=get_gif(type='no')
     )
     await query.answer()
+    
+    
+    asyncio.create_task(
+        delete_message_after(query.bot, query.from_user.id, sent_message.message_id, 10)
+    )
 
     
 # ======================

@@ -75,7 +75,7 @@ prayed_keyboard = InlineKeyboardMarkup(
 )
 
 # ======================
-# PRAYER SCHEDULER - UNCHANGED
+# PRAYER SCHEDULER
 # ======================
 async def prayer_scheduler(bot: Bot, user_id: int):
     while True:
@@ -95,7 +95,7 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                     continue
                 await bot.send_message(
                     chat_id=user_id,
-                    text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message(prayer)} prayer\n({time_str})",
+                    text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message(prayer)}\n({time_str})",
                 )
                 sent_today[user_id][prayer] = today
         await asyncio.sleep(30)
@@ -106,8 +106,21 @@ def start_prayer_scheduler(bot: Bot, user_id: int):
     task = asyncio.create_task(prayer_scheduler(bot, user_id))
     prayer_scheduler_tasks[user_id] = task
 
+
 # ======================
-# PRE-PRAYER REMINDER (10 MIN) - UNCHANGED
+# MESSAGE DELETER
+# ======================
+async def delete_message_after(bot: Bot, chat_id: int, message_id: int, seconds: int):
+    """Delete a message after specified seconds"""
+    await asyncio.sleep(seconds)
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except Exception as e:
+        # Message might already be deleted or user deleted it
+        logging.error(f"Failed to delete message {message_id}: {e}")
+        
+# ======================
+# PRE-PRAYER REMINDER (10 MIN)
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
     sent_pre = set()
@@ -118,7 +131,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         prayers = []
         for prayer, time_str in prayer_times.items():
-            if prayer == "timezone":
+            if prayer in ("timezone","isha"):
                 continue
             dt = datetime.strptime(time_str, "%H:%M").replace(
                 year=now.year, month=now.month, day=now.day, tzinfo=tz
@@ -143,13 +156,17 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
    
         if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
             if key not in sent_pre:
-                await bot.send_animation(
+                sent_message = await bot.send_animation(
                     chat_id=user_id,
                     animation=get_gif(type='judging'),
                     caption=f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
                     reply_markup=prayed_keyboard
                 )
                 sent_pre.add(key)
+                
+                asyncio.create_task(
+                    delete_message_after(bot, user_id, sent_message.message_id, 10)
+                )
 
         await asyncio.sleep(20)
 

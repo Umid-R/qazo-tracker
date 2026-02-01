@@ -146,10 +146,10 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
         # Asr is the deadline for Dhuhr
         # Maghrib is the deadline for Asr
         deadline_to_prayer = {
-            "Sunrise": "Fajr",
-            "Dhuhr": None,
-            "Asr": "Dhuhr",
-            "Maghrib": "Asr",
+            "sunrise": "fajr",
+            "dhuhr": None,
+            "asr": "dhuhr",
+            "maghrib": "asr",
         }
 
         for prayer, dt in prayers:

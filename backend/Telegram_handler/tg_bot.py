@@ -164,7 +164,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
             if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
                 if key not in sent_pre:
-                    sent_message = await bot.send_animation(
+                    await bot.send_animation(
                         chat_id=user_id,
                         animation=get_gif(type='judging'),
                         caption=f"⚠️ {target_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
@@ -174,9 +174,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
                     last_warned_prayer[user_id] = target_prayer
 
-                    asyncio.create_task(
-                        delete_message_after(bot, user_id, sent_message.message_id, 10)
-                    )
+                    
 
         await asyncio.sleep(20)
 

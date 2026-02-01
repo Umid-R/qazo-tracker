@@ -134,7 +134,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         prayers = []
         for prayer, time_str in prayer_times.items():
-            if prayer in ("timezone","isha"):
+            if prayer in ("timezone", "isha"):
                 continue
             dt = datetime.strptime(time_str, "%H:%M").replace(
                 year=now.year, month=now.month, day=now.day, tzinfo=tz
@@ -142,34 +142,40 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
             prayers.append((prayer, dt))
         prayers.sort(key=lambda x: x[1])
 
-        # next prayer
-        future = [(p, dt) for p, dt in prayers if dt > now]
-        if not future:
-            # next day
-            prayers = [(p, dt + timedelta(days=1)) for p, dt in prayers]
-            prayers.sort(key=lambda x: x[1])
-            future = prayers
+        # Sunrise is the deadline for Fajr
+        # Asr is the deadline for Dhuhr
+        # Maghrib is the deadline for Asr
+        deadline_to_prayer = {
+            "Sunrise": "Fajr",
+            "Dhuhr": None,
+            "Asr": "Dhuhr",
+            "Maghrib": "Asr",
+        }
 
-        next_prayer, next_dt = future[0]
-        idx = prayers.index((next_prayer, next_dt))
-        current_prayer, current_dt = prayers[idx - 1]
+        for prayer, dt in prayers:
+            target_prayer = deadline_to_prayer.get(prayer)
 
-        reminder_dt = next_dt - timedelta(minutes=10)
-        key = (current_prayer, reminder_dt.date())
-   
-        if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
-            if key not in sent_pre:
-                await bot.send_animation(
-                    chat_id=user_id,
-                    animation=get_gif(type='judging'),
-                    caption=f"⚠️ {current_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
-                    reply_markup=prayed_keyboard
-                )
-                sent_pre.add(key)
-                
-                last_warned_prayer[user_id] = current_prayer
-                
-                
+            if target_prayer is None:
+                continue
+
+            reminder_dt = dt - timedelta(minutes=10)
+            key = (target_prayer, reminder_dt.date())
+
+            if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
+                if key not in sent_pre:
+                    sent_message = await bot.send_animation(
+                        chat_id=user_id,
+                        animation=get_gif(type='judging'),
+                        caption=f"⚠️ {target_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
+                        reply_markup=prayed_keyboard
+                    )
+                    sent_pre.add(key)
+
+                    last_warned_prayer[user_id] = target_prayer
+
+                    asyncio.create_task(
+                        delete_message_after(bot, user_id, sent_message.message_id, 10)
+                    )
 
         await asyncio.sleep(20)
 
@@ -378,13 +384,12 @@ async def handle_prayed_yes(query: CallbackQuery):
 async def handle_prayed_no(query: CallbackQuery):
     user_id = query.from_user.id
     
-    # Get prayer and add to qaza
+    
     prayer_name = last_warned_prayer.get(user_id, "unknown")
     
     if prayer_name != "unknown":
         add_qaza(prayer_name, user_id)
     
-    # 🔥 Remove from tracking after response
     if user_id in last_warned_prayer:
         del last_warned_prayer[user_id]
     

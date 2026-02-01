@@ -134,7 +134,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         prayers = []
         for prayer, time_str in prayer_times.items():
-            if prayer in ("timezone", "isha"):
+            if prayer in ("timezone"):
                 continue
             dt = datetime.strptime(time_str, "%H:%M").replace(
                 year=now.year, month=now.month, day=now.day, tzinfo=tz
@@ -150,6 +150,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
             "dhuhr": None,
             "asr": "dhuhr",
             "maghrib": "asr",
+            "isha": "maghrib",
         }
 
         for prayer, dt in prayers:

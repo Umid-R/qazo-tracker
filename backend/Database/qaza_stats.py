@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import os
 from datetime import  datetime, timedelta, time, date
 import random
+import logging
+import json
 
 load_dotenv()
 
@@ -160,45 +162,47 @@ def get_prayers_stats(user_id: int):
     return stats
 
     
-
-
-
 def get_weekly_activity(user_id: int):
     today = date.today()
     start_date = today - timedelta(days=6)
-
-    # fetch all prayer logs for last 7 days
-    res = (
-        Client
-        .table("qazas")
-        .select("time_prayed")
-        .eq("user_id", user_id)
-        .gte("time_prayed", start_date.isoformat())
-        .execute()
-    )
-
-    # create last 7 days list with default False (red)
+    
+    try:
+        # Fetch all prayers for last 7 days
+        res = (
+            Client
+            .table("daily_prayers")
+            .select("prayer_date")
+            .eq("user_id", user_id)
+            .gte("prayer_date", start_date.isoformat())
+            .lte("prayer_date", today.isoformat())
+            .execute()
+        )
+        data = res.data if res.data else []
+    except Exception as e:
+        logging.error(f"Failed to get weekly activity for {user_id}: {e}")
+        data = []
+    
+    # Count prayers per day
+    daily_counts = {}
+    for row in data:
+        prayer_date = row.get("prayer_date")
+        if prayer_date:
+            daily_counts[prayer_date] = daily_counts.get(prayer_date, 0) + 1
+    
+    # Build week status for last 7 days (oldest to newest)
     week_status = []
     for i in range(7):
         day = start_date + timedelta(days=i)
-        day_name = day.strftime("%a")
+        day_key = day.isoformat()
+        
         week_status.append({
-            "day": day_name,
-            "status": False  # red by default
+            "day": day.strftime("%a"),
+            "status": daily_counts.get(day_key, 0) == 5
         })
+    
+    return json.dumps(week_status)
 
-    # mark True (green) if at least one prayer exists
-    for entry in res.data:
-        log_day = entry['time_prayed'][:10]
-        log_day = date.fromisoformat(log_day)
-        idx = (log_day - start_date).days
-        if 0 <= idx < 7:
-            week_status[idx]["status"] = True
-
-    return week_status
-
-
-
+print(get_weekly_activity(1207972222))
 
 def get_profile_quote():
     res = (

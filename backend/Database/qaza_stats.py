@@ -4,7 +4,7 @@ import os
 from datetime import  datetime, timedelta, time, date
 import random
 import logging
-import json
+
 
 load_dotenv()
 
@@ -203,7 +203,7 @@ def get_weekly_activity(user_id: int):
             "status": daily_counts.get(day_key, 0) == 5
         })
     
-    return json.dumps(week_status)
+    return week_status
 
 print(get_weekly_activity(1207972222))
 

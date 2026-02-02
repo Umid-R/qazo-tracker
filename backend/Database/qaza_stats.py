@@ -90,16 +90,19 @@ def get_prayers_stats(user_id: int):
     today = date.today()
     start = datetime.combine(today, time.min)
     end = datetime.combine(today, time.max)
+    
+
+    
     res = (
         Client
-        .table("qazas")
+        .table("daily_prayers")
         .select("id", count="exact")
         .eq("user_id", user_id)
-        .eq("is_qaza", False)  
-        .gte("time_prayed", start.isoformat())
-        .lte("time_prayed", end.isoformat())
-        .execute())
-    stats['completed_today']=res.count
+        .eq("prayer_date", today.isoformat())
+        .execute()
+    )
+
+    stats['completed_today'] = res.count
     
     
     res = (

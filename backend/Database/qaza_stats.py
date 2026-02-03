@@ -206,7 +206,7 @@ def get_weekly_activity(user_id: int):
     
     return week_status  
 
-print(get_weekly_activity(1207972222))
+
 
 def get_profile_quote():
     res = (

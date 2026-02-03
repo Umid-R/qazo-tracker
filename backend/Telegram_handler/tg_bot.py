@@ -35,7 +35,8 @@ from backend.Database.database import (
     is_user_exist,
     insert_prayer_times,
     update_prayer_times,
-    add_qaza
+    add_qaza,
+    add_prayer
 )
 
 # ======================
@@ -368,16 +369,27 @@ async def handle_text(message: Message, state: FSMContext):
 
 @dp.callback_query(F.data == "prayed_yes")
 async def handle_prayed_yes(query: CallbackQuery):
+    user_id = query.from_user.id
+    
+    
+    prayer_name = last_warned_prayer.get(user_id, "unknown")
+    
+    if prayer_name != "unknown":
+        add_prayer(prayer_name, user_id)
+    
+    
+    if user_id in last_warned_prayer:
+        del last_warned_prayer[user_id]
+    
     sent_message = await query.bot.send_animation(
-        chat_id=query.from_user.id,       
+        chat_id=user_id,       
         animation=get_gif(type='yes')       
     )
     await query.answer() 
     
-    
     asyncio.create_task(
-        delete_message_after(query.bot, query.from_user.id, sent_message.message_id, 10)
-    )             
+        delete_message_after(query.bot, user_id, sent_message.message_id, 10)
+    )           
 
 @dp.callback_query(F.data == "prayed_no")
 async def handle_prayed_no(query: CallbackQuery):

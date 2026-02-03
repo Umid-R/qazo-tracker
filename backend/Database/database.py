@@ -99,6 +99,12 @@ def add_qaza(prayer, user_id, reason=None):
         'reason': reason
     }).execute()
     
+def add_prayer(prayer,user_id):
+    response = Client.table('daily_prayers').insert({
+        'user_id': user_id,
+        'prayer': prayer,
+    }).execute()
+    
     
     
     return 1

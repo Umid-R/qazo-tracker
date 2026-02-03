@@ -4,7 +4,7 @@ import os
 from datetime import  datetime, timedelta, time, date
 import random
 import logging
-import json
+
 
 
 load_dotenv()

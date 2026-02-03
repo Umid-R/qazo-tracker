@@ -134,7 +134,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
         prayers = []
         for prayer, time_str in prayer_times.items():
-            if prayer in ("timezone"):
+            if prayer in ("timezone,"):
                 continue
             dt = datetime.strptime(time_str, "%H:%M").replace(
                 year=now.year, month=now.month, day=now.day, tzinfo=tz
@@ -418,6 +418,12 @@ async def main():
         )
     )
     asyncio.create_task(daily_prayer_times_updater())
+    
+    users = get_all_users()
+    for user in users:
+        start_prayer_scheduler(bot, user["id"])
+        start_pre_prayer_scheduler(bot, user["id"])
+        
     await dp.start_polling(bot, drop_pending_updates=True)
 
 if __name__ == "__main__":

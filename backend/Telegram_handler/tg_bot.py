@@ -39,6 +39,7 @@ from backend.Database.database import (
     add_prayer
 )
 
+
 # ======================
 # ENV
 # ======================

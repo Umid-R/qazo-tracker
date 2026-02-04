@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from backend.Database.qaza_stats import get_total_qazas, get_prayers_stats,get_user_info,qazas_rating,get_weekly_activity, get_profile_quote
+from backend.Database.qaza_stats import get_total_qazas, get_prayers_stats,get_user_info,qazas_rating,get_weekly_activity, get_profile_quote, get_monthly_data
 
 router = APIRouter()
 
@@ -59,5 +59,13 @@ def get_quotes():
     try:
         quote=get_profile_quote()
         return quote
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/calendar/{userId}")
+def get_calendar_page(userId: int, year: int, month: int):
+    try:
+        monthly = get_monthly_data(userId, year, month)
+        return monthly
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

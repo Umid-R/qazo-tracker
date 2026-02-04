@@ -257,8 +257,35 @@ def get_gif(type):
     
 
 
+def get_monthly_data(user_id: int, year: int, month: int):
     
+    res = (
+         Client
+         .rpc(
+            'get_monthly_prayer_data', 
+            {
+                'p_user_id': user_id,
+                'p_year': year,
+                'p_month': month
+            }
+        )
+        .execute()
+    )
     
+    data = res.data 
+
+    total_prayers = data['monthSummary']['adaPrayers'] + data['monthSummary']['missed']
+    if total_prayers > 0:
+        data['monthSummary']['completionRate'] = round(
+            (data['monthSummary']['adaPrayers'] / total_prayers) * 100,
+            2
+        )
+    else:
+        data['monthSummary']['completionRate'] = 0
+    
+    return data
+    
+  
 
 
 

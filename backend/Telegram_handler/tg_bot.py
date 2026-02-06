@@ -47,28 +47,28 @@ load_dotenv()
 access_token = os.getenv("TELEGRAM_TOKEN")
 
 # ======================
-# FSM STATES (ADDED TO FIX GLOBAL VARIABLE BUG)
+# FSM STATES
 # ======================
 class UserRegistration(StatesGroup):
     waiting_for_name = State()
     waiting_for_city = State()
 
 # ======================
-# DISPATCHER (ADDED MemoryStorage FOR FSM)
+# DISPATCHER
 # ======================
 dp = Dispatcher(storage=MemoryStorage())
 
 # ======================
-# GLOBALS (KEPT EXACTLY AS YOU HAD THEM)
+# GLOBALS
 # ======================
 sent_today = {}  # prevent duplicates
 prayer_scheduler_tasks = {}  # per-user prayer scheduler
 pre_prayer_scheduler_tasks = {}  # per-user pre-prayer scheduler
-last_warned_prayer = {}
+last_warned_prayer = {}  # Fixed: Now stores message_id to track which prayer was warned
 
 
 # ======================
-# INLINE BUTTONS (10-MIN WARNING) - UNCHANGED
+# INLINE BUTTONS (10-MIN WARNING)
 # ======================
 prayed_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -84,30 +84,42 @@ prayed_keyboard = InlineKeyboardMarkup(
 # ======================
 async def prayer_scheduler(bot: Bot, user_id: int):
     while True:
-        prayer_times = get_prayer_times(user_id)
-        tz = ZoneInfo(prayer_times["timezone"])
-        now = datetime.now(tz).strftime("%H:%M")
-        today = datetime.now(tz).date()
+        try:
+            prayer_times = get_prayer_times(user_id)
+            tz = ZoneInfo(prayer_times["timezone"])
+            now = datetime.now(tz).strftime("%H:%M")
+            today = datetime.now(tz).date()
 
-        if user_id not in sent_today:
-            sent_today[user_id] = {}
+            if user_id not in sent_today:
+                sent_today[user_id] = {}
 
-        for prayer, time_str in prayer_times.items():
-            if prayer == "timezone":
-                continue
-            if now == time_str:
-                if sent_today[user_id].get(prayer) == today:
+            for prayer, time_str in prayer_times.items():
+                if prayer == "timezone":
                     continue
-                await bot.send_message(
-                    chat_id=user_id,
-                    text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message(prayer)}\n({time_str})",
-                )
-                sent_today[user_id][prayer] = today
-        await asyncio.sleep(30)
+                if now == time_str:
+                    if sent_today[user_id].get(prayer) == today:
+                        continue
+                    await bot.send_message(
+                        chat_id=user_id,
+                        text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message(prayer)}\n({time_str})",
+                    )
+                    sent_today[user_id][prayer] = today
+            
+            await asyncio.sleep(30)
+            
+        except asyncio.CancelledError:
+            # Task was cancelled, exit gracefully
+            logging.info(f"Prayer scheduler cancelled for user {user_id}")
+            break
+        except Exception as e:
+            logging.error(f"Prayer scheduler error for user {user_id}: {e}")
+            await asyncio.sleep(60)  # Back off on error
 
 def start_prayer_scheduler(bot: Bot, user_id: int):
+    # Cancel existing task if any
     if user_id in prayer_scheduler_tasks:
-        return
+        prayer_scheduler_tasks[user_id].cancel()
+    
     task = asyncio.create_task(prayer_scheduler(bot, user_id))
     prayer_scheduler_tasks[user_id] = task
 
@@ -128,85 +140,114 @@ async def delete_message_after(bot: Bot, chat_id: int, message_id: int, seconds:
 # PRE-PRAYER REMINDER (10 MIN)
 # ======================
 async def pre_prayer_scheduler(bot: Bot, user_id: int):
-    sent_pre = set()
+    sent_pre = {}  # Fixed: Changed to dict to store dates for cleanup
+    
     while True:
-        prayer_times = get_prayer_times(user_id)
-        tz = ZoneInfo(prayer_times["timezone"])
-        now = datetime.now(tz)
+        try:
+            prayer_times = get_prayer_times(user_id)
+            tz = ZoneInfo(prayer_times["timezone"])
+            now = datetime.now(tz)
 
-        prayers = []
-        for prayer, time_str in prayer_times.items():
-            if prayer in ("timezone,"):
-                continue
-            dt = datetime.strptime(time_str, "%H:%M").replace(
-                year=now.year, month=now.month, day=now.day, tzinfo=tz
-            )
-            prayers.append((prayer, dt))
-        prayers.sort(key=lambda x: x[1])
+            prayers = []
+            for prayer, time_str in prayer_times.items():
+                if prayer == "timezone":  # Fixed: Removed extra comma
+                    continue
+                dt = datetime.strptime(time_str, "%H:%M").replace(
+                    year=now.year, month=now.month, day=now.day, tzinfo=tz
+                )
+                prayers.append((prayer, dt))
+            prayers.sort(key=lambda x: x[1])
 
-        # Sunrise is the deadline for Fajr
-        # Asr is the deadline for Dhuhr
-        # Maghrib is the deadline for Asr
-        deadline_to_prayer = {
-            "sunrise": "fajr",
-            "dhuhr": None,
-            "asr": "dhuhr",
-            "maghrib": "asr",
-            "isha": "maghrib",
-        }
+            # Sunrise is the deadline for Fajr
+            # Asr is the deadline for Dhuhr
+            # Maghrib is the deadline for Asr
+            deadline_to_prayer = {
+                "sunrise": "fajr",
+                "dhuhr": None,
+                "asr": "dhuhr",
+                "maghrib": "asr",
+                "isha": "maghrib",
+            }
 
-        for prayer, dt in prayers:
-            target_prayer = deadline_to_prayer.get(prayer)
+            for prayer, dt in prayers:
+                target_prayer = deadline_to_prayer.get(prayer)
 
-            if target_prayer is None:
-                continue
+                if target_prayer is None:
+                    continue
 
-            reminder_dt = dt - timedelta(minutes=10)
-            key = (target_prayer, reminder_dt.date())
+                reminder_dt = dt - timedelta(minutes=10)
+                key = (target_prayer, reminder_dt.date())
 
-            if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
-                if key not in sent_pre:
-                    await bot.send_animation(
-                        chat_id=user_id,
-                        animation=get_gif(type='judging'),
-                        caption=f"⚠️ {target_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
-                        reply_markup=prayed_keyboard
-                    )
-                    sent_pre.add(key)
+                if reminder_dt <= now < reminder_dt + timedelta(minutes=1):
+                    if key not in sent_pre:
+                        # Send the reminder
+                        sent_message = await bot.send_animation(
+                            chat_id=user_id,
+                            animation=get_gif(type='judging'),
+                            caption=f"⚠️ {target_prayer.capitalize()} prayer will be MISSED in 10 minutes.\nHave you prayed it already?",
+                            reply_markup=prayed_keyboard
+                        )
+                        sent_pre[key] = True
+                        
+                        # Fixed: Store both prayer name and message_id to track which prayer this reminder is for
+                        last_warned_prayer[user_id] = {
+                            'prayer': target_prayer,
+                            'message_id': sent_message.message_id
+                        }
 
-                    last_warned_prayer[user_id] = target_prayer
+            # Fixed: Clean up old dates from sent_pre to prevent memory leak
+            today = now.date()
+            sent_pre = {k: v for k, v in sent_pre.items() 
+                       if k[1] >= today - timedelta(days=1)}
 
-                    
-
-        await asyncio.sleep(20)
+            await asyncio.sleep(20)
+            
+        except asyncio.CancelledError:
+            # Task was cancelled, exit gracefully
+            logging.info(f"Pre-prayer scheduler cancelled for user {user_id}")
+            break
+        except Exception as e:
+            logging.error(f"Pre-prayer scheduler error for user {user_id}: {e}")
+            await asyncio.sleep(60)  # Back off on error
 
 def start_pre_prayer_scheduler(bot: Bot, user_id: int):
+    # Cancel existing task if any
     if user_id in pre_prayer_scheduler_tasks:
-        return
+        pre_prayer_scheduler_tasks[user_id].cancel()
+    
     task = asyncio.create_task(pre_prayer_scheduler(bot, user_id))
     pre_prayer_scheduler_tasks[user_id] = task
 
 # ======================
-# DAILY PRAYER TIMES UPDATER - UNCHANGED
+# DAILY PRAYER TIMES UPDATER
 # ======================
 async def daily_prayer_times_updater():
     while True:
-        users = get_all_users()
-        for user in users:
-            prayer_times = get_by_cor(user["lat"], user["lon"])
-            update_prayer_times(
-                user["id"],
-                prayer_times["Fajr"],
-                prayer_times["Sunrise"],
-                prayer_times["Dhuhr"],
-                prayer_times["Asr"],
-                prayer_times["Maghrib"],
-                prayer_times["Isha"],
-            )
-        await asyncio.sleep(86400)  # 24 hours
+        try:
+            users = get_all_users()
+            for user in users:
+                try:
+                    prayer_times = get_by_cor(user["lat"], user["lon"])
+                    update_prayer_times(
+                        user["id"],
+                        prayer_times["Fajr"],
+                        prayer_times["Sunrise"],
+                        prayer_times["Dhuhr"],
+                        prayer_times["Asr"],
+                        prayer_times["Maghrib"],
+                        prayer_times["Isha"],
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to update prayer times for user {user['id']}: {e}")
+                    
+            await asyncio.sleep(86400)  # 24 hours
+            
+        except Exception as e:
+            logging.error(f"Daily prayer times updater error: {e}")
+            await asyncio.sleep(3600)  # Retry in 1 hour on error
 
 # ======================
-# COMMAND /START - FIXED TO USE FSM
+# COMMAND /START
 # ======================
 @dp.message(CommandStart())
 async def command_start(message: Message, state: FSMContext):
@@ -216,7 +257,7 @@ async def command_start(message: Message, state: FSMContext):
     )
 
 # ======================
-# ENTER CITY MANUALLY CLICK - FIXED TO USE FSM
+# ENTER CITY MANUALLY CLICK
 # ======================
 @dp.message(F.text == "🏙️ Enter City Manually")
 async def manual_city(message: Message, state: FSMContext):
@@ -227,7 +268,7 @@ async def manual_city(message: Message, state: FSMContext):
     )
 
 # ======================
-# HANDLE LOCATION - FIXED TO USE FSM
+# HANDLE LOCATION
 # ======================
 @dp.message(F.location)
 async def handle_location(message: Message, state: FSMContext):
@@ -273,14 +314,14 @@ async def handle_location(message: Message, state: FSMContext):
         reply_markup=ReplyKeyboardRemove()
     )
 
-    # start schedulers
+    # Fixed: Cancel old tasks before starting new ones
     start_prayer_scheduler(message.bot, user_id)
     start_pre_prayer_scheduler(message.bot, user_id)
     
     await state.clear()
 
 # ======================
-# HANDLE TEXT (NAME OR CITY) - FIXED TO USE FSM
+# HANDLE TEXT (NAME OR CITY)
 # ======================
 @dp.message(F.text)
 async def handle_text(message: Message, state: FSMContext):
@@ -355,7 +396,7 @@ async def handle_text(message: Message, state: FSMContext):
             reply_markup=ReplyKeyboardRemove()
         )
 
-        # start schedulers
+        # Fixed: Cancel old tasks before starting new ones
         start_prayer_scheduler(message.bot, user_id)
         start_pre_prayer_scheduler(message.bot, user_id)
         
@@ -364,21 +405,25 @@ async def handle_text(message: Message, state: FSMContext):
 
 
 # ======================
-# CALLBACK HANDLERS - UNCHANGED
+# CALLBACK HANDLERS
 # ======================
-
 
 @dp.callback_query(F.data == "prayed_yes")
 async def handle_prayed_yes(query: CallbackQuery):
     user_id = query.from_user.id
     
+    # Fixed: Get prayer name from stored data
+    prayer_data = last_warned_prayer.get(user_id)
     
-    prayer_name = last_warned_prayer.get(user_id, "unknown")
+    if prayer_data and isinstance(prayer_data, dict):
+        prayer_name = prayer_data.get('prayer', 'unknown')
+    else:
+        prayer_name = 'unknown'
     
     if prayer_name != "unknown":
         add_prayer(prayer_name, user_id)
     
-    
+    # Clean up
     if user_id in last_warned_prayer:
         del last_warned_prayer[user_id]
     
@@ -396,12 +441,18 @@ async def handle_prayed_yes(query: CallbackQuery):
 async def handle_prayed_no(query: CallbackQuery):
     user_id = query.from_user.id
     
+    # Fixed: Get prayer name from stored data
+    prayer_data = last_warned_prayer.get(user_id)
     
-    prayer_name = last_warned_prayer.get(user_id, "unknown")
+    if prayer_data and isinstance(prayer_data, dict):
+        prayer_name = prayer_data.get('prayer', 'unknown')
+    else:
+        prayer_name = 'unknown'
     
     if prayer_name != "unknown":
         add_qaza(prayer_name, user_id)
     
+    # Clean up
     if user_id in last_warned_prayer:
         del last_warned_prayer[user_id]
     
@@ -414,13 +465,9 @@ async def handle_prayed_no(query: CallbackQuery):
     asyncio.create_task(
         delete_message_after(query.bot, user_id, sent_message.message_id, 10)
     )
-    
-    
-    
 
-    
 # ======================
-# MAIN - UNCHANGED
+# MAIN
 # ======================
 async def main():
     bot = Bot(token=access_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))

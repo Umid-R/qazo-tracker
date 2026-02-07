@@ -65,6 +65,7 @@ sent_today = {}  # prevent duplicates
 prayer_scheduler_tasks = {}  # per-user prayer scheduler
 pre_prayer_scheduler_tasks = {}  # per-user pre-prayer scheduler
 last_warned_prayer = {}  # Fixed: Now stores message_id to track which prayer was warned
+last_prayer_notification = {}  #Track last prayer time notification message
 
 
 # ======================
@@ -99,12 +100,22 @@ async def prayer_scheduler(bot: Bot, user_id: int):
                 if now == time_str:
                     if sent_today[user_id].get(prayer) == today:
                         continue
-                    await bot.send_message(
+                    
+                    # DELETE PREVIOUS PRAYER NOTIFICATION
+                    if user_id in last_prayer_notification:
+                        try:
+                            await bot.delete_message(chat_id=user_id, message_id=last_prayer_notification[user_id])
+                        except Exception as e:
+                            logging.error(f"Failed to delete previous prayer notification: {e}")
+                    
+                    # SEND NEW NOTIFICATION AND STORE MESSAGE ID
+                    sent_message = await bot.send_message(
                         chat_id=user_id,
                         text=f"🕌 Time for {prayer.capitalize()}\n{get_prayer_message(prayer)}\n({time_str})",
                     )
+                    last_prayer_notification[user_id] = sent_message.message_id
                     sent_today[user_id][prayer] = today
-            
+                        
             await asyncio.sleep(30)
             
         except asyncio.CancelledError:

@@ -117,7 +117,11 @@ def add_qaza(prayer, user_id, reason=None):
 def add_prayer(prayer, user_id):
     today = date.today()
     
-    # 1. Remove ONLY qazas added from ADA page today (not bulk qazas!)
+    # 1. Remove from daily_prayers if exists
+    Client.table('daily_prayers').delete().eq('user_id', user_id).eq('prayer', prayer).eq('prayer_date', today).execute()
+    
+    
+    # 2. Remove ONLY qazas added from ADA page today (not bulk qazas!)
     today_start = datetime.combine(today, datetime.min.time()).isoformat()
     today_end = datetime.combine(today, datetime.max.time()).isoformat()
     Client.table('qazas').delete()\

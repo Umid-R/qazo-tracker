@@ -233,6 +233,33 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                             auto_mark_qaza_and_delete(bot, user_id, target_prayer, sent_message.message_id, 7200)
                         )
 
+            # SPECIAL HANDLING FOR ISHA AT 22:00
+            isha_reminder_time = datetime.strptime("22:00", "%H:%M").replace(
+                year=now.year, month=now.month, day=now.day, tzinfo=tz
+            )
+            isha_key = ("isha_daily", isha_reminder_time.date())
+
+            if isha_reminder_time <= now < isha_reminder_time + timedelta(minutes=1):
+                if isha_key not in sent_pre:
+                    # Send Isha reminder at 22:00
+                    sent_message = await bot.send_animation(
+                        chat_id=user_id,
+                        animation=get_gif(type='judging'),
+                        caption=f"⚠️ Isha prayer will be MISSED soon.\nHave you prayed it already?",
+                        reply_markup=prayed_keyboard
+                    )
+                    sent_pre[isha_key] = True
+                    
+                    last_warned_prayer[user_id] = {
+                        'prayer': 'isha',
+                        'message_id': sent_message.message_id
+                    }
+                    
+                    # Auto-timeout after 2 hours (7200 seconds)
+                    asyncio.create_task(
+                        auto_mark_qaza_and_delete(bot, user_id, 'isha', sent_message.message_id, 7200)
+                    )
+
             # Fixed: Clean up old dates from sent_pre to prevent memory leak
             today = now.date()
             sent_pre = {k: v for k, v in sent_pre.items() 

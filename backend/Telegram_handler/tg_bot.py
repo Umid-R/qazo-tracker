@@ -135,7 +135,29 @@ async def delete_message_after(bot: Bot, chat_id: int, message_id: int, seconds:
     except Exception as e:
         # Message might already be deleted or user deleted it
         logging.error(f"Failed to delete message {message_id}: {e}")
+
+# ======================
+# MARK THE PRAYER AS QAZA AND DELETE THE MESSAGE 
+# ======================
+async def auto_mark_qaza_and_delete(bot: Bot, user_id: int, prayer_name: str, message_id: int, seconds: int):
+    """Wait for timeout, then mark as qaza and delete message if user didn't respond"""
+    await asyncio.sleep(seconds)
+    
+    # Check if user already responded
+    prayer_data = last_warned_prayer.get(user_id)
+    if prayer_data and prayer_data.get('message_id') == message_id:
+        # User didn't respond, mark as qaza
+        add_qaza(prayer_name, user_id, reason="No response to reminder")
         
+        # Clean up tracking
+        del last_warned_prayer[user_id]
+    
+    # Delete the message regardless
+    try:
+        await bot.delete_message(chat_id=user_id, message_id=message_id)
+    except Exception as e:
+        logging.error(f"Failed to delete message {message_id}: {e}")
+             
 # ======================
 # PRE-PRAYER REMINDER (10 MIN)
 # ======================
@@ -150,7 +172,7 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
 
             prayers = []
             for prayer, time_str in prayer_times.items():
-                if prayer == "timezone":  # Fixed: Removed extra comma
+                if prayer == "timezone": 
                     continue
                 dt = datetime.strptime(time_str, "%H:%M").replace(
                     year=now.year, month=now.month, day=now.day, tzinfo=tz
@@ -194,6 +216,11 @@ async def pre_prayer_scheduler(bot: Bot, user_id: int):
                             'prayer': target_prayer,
                             'message_id': sent_message.message_id
                         }
+                        
+                        # Auto-timeout after 2 hours (7200 seconds)
+                        asyncio.create_task(
+                            auto_mark_qaza_and_delete(bot, user_id, target_prayer, sent_message.message_id, 7200)
+                        )
 
             # Fixed: Clean up old dates from sent_pre to prevent memory leak
             today = now.date()
@@ -218,6 +245,9 @@ def start_pre_prayer_scheduler(bot: Bot, user_id: int):
     task = asyncio.create_task(pre_prayer_scheduler(bot, user_id))
     pre_prayer_scheduler_tasks[user_id] = task
 
+
+        
+        
 # ======================
 # DAILY PRAYER TIMES UPDATER
 # ======================

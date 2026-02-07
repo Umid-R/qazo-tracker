@@ -194,10 +194,7 @@ def update_qaza(prayer, user_id):
 
 
 def mark_qazas_prayed(user_id, fajr=0, dhuhr=0, asr=0, maghrib=0, isha=0):
-    """
-    Mark the OLDEST qazas as prayed for each prayer type
-    Updates is_qaza to False and sets time_prayed to now
-    """
+    
     prayers_to_clear = {
         'fajr': fajr,
         'dhuhr': dhuhr,

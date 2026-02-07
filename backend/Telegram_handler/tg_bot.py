@@ -457,6 +457,12 @@ async def handle_prayed_yes(query: CallbackQuery):
     if user_id in last_warned_prayer:
         del last_warned_prayer[user_id]
     
+    # DELETE THE ORIGINAL WARNING MESSAGE IMMEDIATELY
+    try:
+        await query.message.delete()
+    except Exception as e:
+        logging.error(f"Failed to delete warning message: {e}")
+    
     sent_message = await query.bot.send_animation(
         chat_id=user_id,       
         animation=get_gif(type='yes')       
@@ -485,6 +491,12 @@ async def handle_prayed_no(query: CallbackQuery):
     # Clean up
     if user_id in last_warned_prayer:
         del last_warned_prayer[user_id]
+    
+    # DELETE THE ORIGINAL WARNING MESSAGE IMMEDIATELY
+    try:
+        await query.message.delete()
+    except Exception as e:
+        logging.error(f"Failed to delete warning message: {e}")
     
     sent_message = await query.bot.send_animation(
         chat_id=user_id,

@@ -1,6 +1,6 @@
-import { Home, Plus, BarChart3, Calendar, User } from 'lucide-react';
+import { Home, Plus, Calendar, User } from 'lucide-react';
 
-type Page = 'home' | 'log' | 'stats' | 'calendar' | 'profile';
+type Page = 'home' | 'log' | 'calendar' | 'profile';
 
 interface BottomNavProps {
   currentPage: Page;
@@ -11,7 +11,6 @@ export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
   const navItems: { id: Page; icon: React.ReactNode; label: string }[] = [
     { id: 'home', icon: <Home size={22} />, label: 'Home' },
     { id: 'log', icon: <Plus size={22} />, label: 'Log' },
-    { id: 'stats', icon: <BarChart3 size={22} />, label: 'Stats' },
     { id: 'calendar', icon: <Calendar size={22} />, label: 'Calendar' },
     { id: 'profile', icon: <User size={22} />, label: 'Profile' },
   ];

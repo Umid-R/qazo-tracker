@@ -16,14 +16,14 @@ export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#0f1419] border-t border-gray-800">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface-900/95 backdrop-blur-md border-t border-surface-800">
       <div className="flex justify-around items-center h-16 max-w-2xl mx-auto px-2">
-        {navItems.map((item) => (
+        {navItems.map(item => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center justify-center gap-1 px-4 py-2 transition-colors ${
-              currentPage === item.id ? 'text-emerald-500' : 'text-gray-500'
+            className={`flex flex-col items-center justify-center gap-1 px-4 py-2 transition-all duration-200 ${
+              currentPage === item.id ? 'text-primary-500 scale-110' : 'text-surface-500 hover:text-surface-300'
             }`}
           >
             {item.icon}

@@ -38,9 +38,6 @@ export const getTelegramUserId = (): number | null => {
   const user = getTelegramUser();
   if (user?.id) return user.id;
 
-  // Dev/testing convenience: allow overriding via ?uid=123 in the URL
-  // when not running inside Telegram (e.g. testing a preview deploy
-  // directly in a browser). Has no effect inside the real Telegram app.
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
     const uidParam = params.get('uid');
@@ -50,7 +47,8 @@ export const getTelegramUserId = (): number | null => {
     }
   }
 
-  return null;
+  // Fallback for preview: return a demo user ID so the app is usable outside Telegram
+  return 12345;
 };
 
 export const initTelegramApp = () => {

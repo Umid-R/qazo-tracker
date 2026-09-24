@@ -26,7 +26,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f1419] text-white flex flex-col">
+    <div className="min-h-screen bg-surface-900 text-surface-100 flex flex-col">
       <div className="flex-1 overflow-y-auto pb-20">
         {renderPage()}
       </div>

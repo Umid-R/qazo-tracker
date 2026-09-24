@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import HomePage from './pages/HomePage';
 import LogPage from './pages/LogPage';
+import StatsPage from './pages/StatsPage';
 import CalendarPage from './pages/CalendarPage';
 import ProfilePage from './pages/ProfilePage';
 import BottomNav from './components/BottomNav';
 
-type Page = 'home' | 'log' | 'calendar' | 'profile';
+type Page = 'home' | 'log' | 'stats' | 'calendar' | 'profile';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -13,15 +14,17 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <HomePage />;
+        return <HomePage onNavigate={setCurrentPage} />;
       case 'log':
         return <LogPage />;
+      case 'stats':
+        return <StatsPage />;
       case 'calendar':
         return <CalendarPage />;
       case 'profile':
         return <ProfilePage />;
       default:
-        return <HomePage />;
+        return <HomePage onNavigate={setCurrentPage} />;
     }
   };
 

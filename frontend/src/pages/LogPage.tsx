@@ -313,11 +313,7 @@ export default function LogPage() {
       <div className="max-w-2xl mx-auto">
         <header className="mb-8">
           <h1 className="text-3xl font-semibold mb-1">Log Prayers</h1>
-          <p className="text-gray-400 text-base">
-            {activeTab === 'ada' && "Mark today's prayers"}
-            {activeTab === 'qaza' && 'Add a missed prayer to your backlog'}
-            {activeTab === 'clear' && 'Mark backlog prayers as made up'}
-          </p>
+          <p className="text-gray-400 text-base">Track your daily prayers</p>
         </header>
 
         <div className="flex gap-3 mb-6">
@@ -329,7 +325,7 @@ export default function LogPage() {
                 : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'
             }`}
           >
-            Today
+            Ada
           </button>
           <button
             onClick={() => setActiveTab('qaza')}
@@ -339,7 +335,7 @@ export default function LogPage() {
                 : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'
             }`}
           >
-            Add Missed
+            Qaza
           </button>
           <button
             onClick={() => setActiveTab('clear')}
@@ -349,7 +345,7 @@ export default function LogPage() {
                 : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'
             }`}
           >
-            Mark Done
+            Clear
           </button>
         </div>
 

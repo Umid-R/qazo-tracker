@@ -551,6 +551,8 @@ async def handle_prayed_no(query: CallbackQuery):
 # ======================
 async def main():
     bot = Bot(token=access_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    # 1. DELETE ANY EXISTING WEBHOOK AUTOMATICALLY BEFORE POLLING
+    await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_chat_menu_button(
         menu_button=MenuButtonWebApp(
             text="🕌 Qaza Tracker",

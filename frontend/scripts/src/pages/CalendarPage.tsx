@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getTelegramUserId, initTelegramApp } from '../utils/telegram';
-import { api, CalendarData, CalendarMonthSummary } from '../services/api';
 
 interface DayPrayers {
   [key: number]: {
@@ -10,48 +8,30 @@ interface DayPrayers {
 }
 
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [userId, setUserId] = useState<number | null>(null);
-  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date(2024, 11));
 
-  useEffect(() => {
-    initTelegramApp();
-    const id = getTelegramUserId();
-    setUserId(id);
-  }, []);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth() + 1;
-
-    setLoading(true);
-    setError(null);
-
-    api.getCalendarData(userId, year, month)
-      .then(data => {
-        setCalendarData(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch calendar data', err);
-        setError('Failed to load calendar data');
-        setLoading(false);
-      });
-  }, [userId, currentMonth]);
-
-  const monthData: CalendarMonthSummary = calendarData?.monthSummary || {
-    adaPrayers: 0,
-    missed: 0,
-    qazaDone: 0,
-    mostMissedPrayer: '-',
-    mostCommonReason: '-',
+  const monthData = {
+    adaPrayers: 40,
+    missed: 8,
+    qazaDone: 2,
+    mostMissedPrayer: 'Fajr',
+    mostCommonReason: 'Sleep',
   };
 
-  const daysWithPrayers: DayPrayers = calendarData?.dailyData || {};
+  const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+  const daysWithPrayers: DayPrayers = {
+    1: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    2: { prayers: [true, true, true, true, false].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    3: { prayers: [false, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    4: { prayers: [false, false, true, false, false].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    5: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    6: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    7: { prayers: [true, false, true, true, false].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    8: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    9: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+    10: { prayers: [true, true, true, true, true].map((p, i) => ({ name: prayerNames[i], prayed: p })) },
+  };
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -83,16 +63,7 @@ export default function CalendarPage() {
     );
   };
 
-  const isDateInPast = (day: number) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    return checkDate <= today;
-  };
-
   const getDayBackground = (day: number) => {
-    if (!isDateInPast(day)) return 'bg-gray-800/30';
-
     const dayData = daysWithPrayers[day as keyof typeof daysWithPrayers];
     if (!dayData) return 'bg-gray-800/30';
 
@@ -106,8 +77,6 @@ export default function CalendarPage() {
   };
 
   const getPrayerDots = (day: number) => {
-    if (!isDateInPast(day)) return null;
-
     const dayData = daysWithPrayers[day as keyof typeof daysWithPrayers];
     if (!dayData) return null;
 
@@ -124,26 +93,6 @@ export default function CalendarPage() {
       </div>
     );
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0f1419] text-white px-5 py-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center text-gray-400">Loading calendar...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#0f1419] text-white px-5 py-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center text-red-400">{error}</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-white px-5 py-8">

@@ -14,7 +14,7 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <HomePage onNavigate={setCurrentPage} />;
+        return <HomePage />;
       case 'log':
         return <LogPage />;
       case 'stats':
@@ -24,7 +24,7 @@ function App() {
       case 'profile':
         return <ProfilePage />;
       default:
-        return <HomePage onNavigate={setCurrentPage} />;
+        return <HomePage />;
     }
   };
 

@@ -1,9 +1,13 @@
-import { TrendingUp, AlertCircle } from 'lucide-react';
+import { BarChart3, Calendar, TrendingUp, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTelegramUserId, initTelegramApp } from '../utils/telegram';
 import { api, QazaBreakdown, PrayerStats, WeeklyActivity } from '../services/api';
 
-export default function HomePage() {
+export default function HomePage({
+  onNavigate,
+}: {
+  onNavigate?: (page: string) => void;
+}) {
   const [totalQazaRemaining, setTotalQazaRemaining] = useState<number | null>(null);
   const [qazaBreakdown, setQazaBreakdown] = useState<QazaBreakdown | null>(null);
   const [prayerStats, setPrayerStats] = useState<PrayerStats | null>(null);
@@ -136,25 +140,28 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* WEEKLY STATS */}
-        {!loading && !error && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 rounded-xl p-4 border border-emerald-700/30">
-              <div className="text-emerald-400 text-xs font-semibold uppercase mb-2">Cleared</div>
-              <div className="text-2xl font-bold text-emerald-300">{prayerStats?.cleared_this_week ?? 0}</div>
-              <p className="text-xs text-gray-400">This week</p>
+        {/* QUICK ACTIONS — ONLY CHANGE HERE */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            className="group bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 rounded-2xl p-6 flex flex-col items-center gap-3 hover:shadow-lg hover:shadow-emerald-500/20 transform hover:-translate-y-1"
+            onClick={() => onNavigate?.('stats')}
+          >
+            <div className="group-hover:scale-110 transition-transform">
+              <BarChart3 size={32} strokeWidth={2} />
             </div>
-            <div className="bg-gradient-to-br from-teal-900/30 to-teal-800/20 rounded-xl p-4 border border-teal-700/30">
-              <div className="text-teal-400 text-xs font-semibold uppercase mb-2">Average</div>
-              <div className="text-2xl font-bold text-teal-300">
-                {prayerBreakdown.length > 0
-                  ? Math.round(prayerBreakdown.reduce((sum, p) => sum + p.count, 0) / prayerBreakdown.length)
-                  : 0}
-              </div>
-              <p className="text-xs text-gray-400">Per prayer</p>
+            <span className="font-semibold text-lg">View Stats</span>
+          </button>
+
+          <button
+            className="group bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 transition-all duration-300 rounded-2xl p-6 flex flex-col items-center gap-3 hover:shadow-lg hover:shadow-emerald-500/20 transform hover:-translate-y-1"
+            onClick={() => onNavigate?.('calendar')}
+          >
+            <div className="group-hover:scale-110 transition-transform">
+              <Calendar size={32} strokeWidth={2} />
             </div>
-          </div>
-        )}
+            <span className="font-semibold text-lg">Calendar</span>
+          </button>
+        </div>
 
         {/* LOADING / ERROR */}
         {loading ? (
@@ -216,31 +223,6 @@ export default function HomePage() {
                   </span>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* MOST MISSED */}
-        {!loading && !error && prayerBreakdown.length > 0 && (
-          <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-2xl p-6 border border-teal-700/30">
-            <div className="flex items-center gap-2 mb-6">
-              <AlertCircle size={20} className="text-red-400" />
-              <h3 className="text-lg font-semibold">Most Missed Prayers</h3>
-            </div>
-            <div className="h-40 flex items-end justify-around gap-4">
-              {[...prayerBreakdown]
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 3)
-                .map(prayer => (
-                  <div key={prayer.name} className="flex flex-col items-center flex-1">
-                    <div className="text-sm font-bold text-red-400 mb-2">{prayer.count}</div>
-                    <div
-                      className="w-full bg-gradient-to-t from-red-600/40 to-red-500/60 rounded-lg border border-red-500/30"
-                      style={{ height: `${(prayer.count / maxCount) * 120}px` }}
-                    />
-                    <div className="text-sm font-semibold text-gray-300 mt-3">{prayer.name}</div>
-                  </div>
-                ))}
             </div>
           </div>
         )}

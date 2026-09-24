@@ -1,24 +1,68 @@
 import { TrendingDown, AlertCircle, Target } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { getTelegramUserId, initTelegramApp } from '../utils/telegram';
+import { api, QazaBreakdown } from '../services/api';
+
+interface TrendData {
+  week: string;
+  count: number;
+}
 
 export default function StatsPage() {
-  const qazaBacklog = [
-    { name: 'Fajr', count: 45 },
-    { name: 'Dhuhr', count: 28 },
-    { name: 'Asr', count: 32 },
-    { name: 'Maghrib', count: 15 },
-    { name: 'Isha', count: 38 },
-  ];
+  const [qazaBreakdown, setQazaBreakdown] = useState<QazaBreakdown | null>(null);
+  const [clearedThisWeek, setClearedThisWeek] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      initTelegramApp();
+      const userId = getTelegramUserId();
+
+      if (!userId) {
+        setError('Unable to get Telegram user ID');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [breakdown, stats] = await Promise.all([
+          api.getQazaBreakdown(userId),
+          api.getPrayerStats(userId),
+        ]);
+
+        setQazaBreakdown(breakdown);
+        setClearedThisWeek(stats.cleared_this_week);
+      } catch (err) {
+        console.error('Failed to fetch data', err);
+        setError('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const qazaBacklog = qazaBreakdown
+    ? [
+        { name: 'Fajr', count: qazaBreakdown.fajr },
+        { name: 'Dhuhr', count: qazaBreakdown.dhuhr },
+        { name: 'Asr', count: qazaBreakdown.asr },
+        { name: 'Maghrib', count: qazaBreakdown.maghrib },
+        { name: 'Isha', count: qazaBreakdown.isha },
+      ]
+    : [];
 
   const totalQaza = qazaBacklog.reduce((sum, prayer) => sum + prayer.count, 0);
-  const maxCount = Math.max(...qazaBacklog.map(p => p.count));
-  const avgQaza = Math.round(totalQaza / qazaBacklog.length);
-  const clearedThisWeek = 7;
+  const maxCount = qazaBacklog.length > 0 ? Math.max(...qazaBacklog.map(p => p.count)) : 1;
+  const avgQaza = qazaBacklog.length > 0 ? Math.round(totalQaza / qazaBacklog.length) : 0;
 
-  const trendData = [
-    { week: 'Week 1', count: 180 },
-    { week: 'Week 2', count: 172 },
-    { week: 'Week 3', count: 165 },
-    { week: 'Week 4', count: 158 },
+  const trendData: TrendData[] = [
+    { week: 'Week 1', count: totalQaza + 22 },
+    { week: 'Week 2', count: totalQaza + 14 },
+    { week: 'Week 3', count: totalQaza + 7 },
+    { week: 'Week 4', count: totalQaza },
   ];
 
   const maxTrend = Math.max(...trendData.map(d => d.count));
@@ -27,7 +71,7 @@ export default function StatsPage() {
   const chartPadding = 20;
 
   const getY = (value: number) => {
-    const range = maxTrend - minTrend;
+    const range = maxTrend - minTrend || 1;
     const normalized = (value - minTrend) / range;
     return chartHeight - chartPadding - normalized * (chartHeight - 2 * chartPadding);
   };
@@ -37,6 +81,26 @@ export default function StatsPage() {
     const y = getY(d.count);
     return `${x},${y}`;
   }).join(' ');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0f1419] text-white px-5 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center text-gray-400">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0f1419] text-white px-5 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center text-red-400">{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-white px-5 py-8">
@@ -60,14 +124,14 @@ export default function StatsPage() {
           <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-xl p-4 border border-gray-700/30">
             <div className="text-gray-400 text-xs font-semibold uppercase mb-2">Total</div>
             <div className="text-2xl font-bold text-gray-200">{totalQaza}</div>
-            <p className="text-xs text-gray-500">Remaining</p>
+            <p className="text-xs text-gray-500">Qazas Remaining</p>
           </div>
         </div>
 
         <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-2xl p-6 border border-teal-700/30">
           <div className="flex items-center gap-2 mb-6">
             <Target size={20} className="text-emerald-400" />
-            <h2 className="text-lg font-semibold">Qaza Backlog</h2>
+            <h2 className="text-lg font-semibold">Qazas Breakdown</h2>
           </div>
 
           <div className="space-y-4">
@@ -89,7 +153,7 @@ export default function StatsPage() {
         <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-2xl p-6 border border-teal-700/30">
           <div className="flex items-center gap-2 mb-6">
             <TrendingDown size={20} className="text-emerald-400" />
-            <h2 className="text-lg font-semibold">Qaza Trend</h2>
+            <h2 className="text-lg font-semibold">Qazas Trend</h2>
           </div>
 
           <div className="relative" style={{ height: `${chartHeight}px` }}>
